@@ -1,0 +1,75 @@
+# Test sentences for deplambda rule port validation
+# 50 sentences covering all linguistic constructions CHISEL needs
+# Format: One sentence per line
+
+# SIMPLE DECLARATIVES (5 sentences)
+The student studies computer science.
+John works in the engineering department.
+The professor teaches databases.
+Mary manages the research team.
+The company develops software products.
+
+# WH-QUESTIONS (10 sentences)
+Who is the founder of Google?
+What is the capital of France?
+Where does Darwin live?
+When was Obama elected?
+How many students study computer science?
+Which course did John take?
+Whose book is this?
+Why did Mary leave?
+How does the system work?
+What country is Darwin from?
+
+# RELATIVE CLAUSES (8 sentences)
+The student who studies computer science works at Google.
+The company which bought Youtube owns Gmail.
+The professor that teaches databases wrote a textbook.
+Students who are older than 20 can enroll.
+The course which John took was cancelled.
+The person whose car is parked outside should move it.
+The country where Darwin belongs is the UK.
+The day when Obama was elected was historic.
+
+# PASSIVES (5 sentences)
+The course was taught by Professor Smith.
+The company was founded by Steve Jobs.
+The book was written by Chomsky.
+The project was completed last year.
+The student was hired by Google.
+
+# COMPARATIVES (4 sentences)
+Students older than 20 can enroll.
+Professors with more than 5 publications get tenure.
+Courses with fewer than 10 students are cancelled.
+Employees earning more than 100000 pay higher taxes.
+
+# SUPERLATIVES (4 sentences)
+The student with the highest GPA graduates first.
+The company with the largest revenue is Microsoft.
+The course with the most students is Introduction to CS.
+The professor with the oldest PhD supervises new faculty.
+
+# COORDINATION (4 sentences)
+Students and professors attend the conference.
+John studies computer science and mathematics.
+Mary works at Google or Facebook.
+The company develops software but sells hardware.
+
+# NEGATION (3 sentences)
+Students who do not have any courses cannot graduate.
+John did not attend the lecture.
+The professor does not teach on Fridays.
+
+# EXISTENTIALS (2 sentences)
+Is there a student in the CS department?
+Are there any courses on machine learning?
+
+# PREPOSITIONAL PHRASES (3 sentences)
+The number of students in each department varies.
+The professor from Stanford gives a talk.
+The book on the table belongs to Mary.
+
+# COMPLEX QUERIES (2 sentences)
+Find the names of students who are enrolled in courses taught by professors in the CS department.
+What is the average salary of employees who work in departments managed by directors hired after 2010?
