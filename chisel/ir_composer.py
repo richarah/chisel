@@ -25,6 +25,7 @@ from nltk.sem.logic import Expression
 from . import ir_vocabulary as vocab
 from . import deplambda_constructors as dlambda
 from . import tree_transformations as transforms
+from .tnode import TNode, doc_to_tnodes, find_node_by_index
 from .question_analysis import QuestionAnalysis
 from .schema_linking import SchemaLink
 from .schema_graph import SchemaGraph
@@ -141,14 +142,17 @@ class IRComposer:
         else:
             doc = analysis.doc
 
+        # Convert Doc to TNodes for mutable transformations
+        nodes = doc_to_tnodes(doc)
+
         # Apply deplambda tree transformations
-        # TODO: Re-enable after fixing spaCy Doc immutability issues
-        # doc = transforms.apply_all_transformations(doc)
+        nodes = transforms.apply_all_transformations(nodes)
 
         # Annotate tokens with schema links
         self._annotate_schema_links(doc, links)
 
-        # Match templates bottom-up
+        # Match templates bottom-up (still using Doc for DependencyMatcher)
+        # TODO: Implement TNode-based pattern matching
         matches = self.matcher(doc)
 
         if not matches:

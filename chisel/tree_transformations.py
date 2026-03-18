@@ -1,7 +1,7 @@
 """
 Tree Transformation Rules
 
-Implements deplambda's transformation-rules.pb.txt in spaCy.
+Implements deplambda's transformation-rules.pb.txt on TNode structure.
 These rules restructure the dependency tree before lambda assignment:
 - Fix parser errors
 - Mark wh-word extraction
@@ -14,77 +14,53 @@ Original rules: https://github.com/sivareddyg/deplambda/blob/master/transformati
 """
 
 from typing import List, Set, Dict, Optional
-from spacy.tokens import Doc, Token
-import spacy
-
-
-# ==========================================================================================
-# HELPER FUNCTIONS
-# ==========================================================================================
-
-def has_dep(token: Token, dep: str) -> bool:
-    """Check if token has a child with given dependency."""
-    return any(child.dep_ == dep for child in token.children)
-
-
-def get_children_by_dep(token: Token, dep: str) -> List[Token]:
-    """Get all children with given dependency."""
-    return [child for child in token.children if child.dep_ == dep]
-
-
-def has_pos(token: Token, pos_pattern: str) -> bool:
-    """Check if token matches POS pattern."""
-    if pos_pattern.startswith("^") and pos_pattern.endswith("$"):
-        pos_pattern = pos_pattern[1:-1]
-    return token.pos_ == pos_pattern or token.tag_.startswith(pos_pattern)
+from .tnode import TNode, find_node_by_index, find_nodes_by_dep, find_nodes_by_lemma
 
 
 # ==========================================================================================
 # PARSER BUG FIXES (Priority: 1)
 # ==========================================================================================
 
-def fix_preposition_labeled_dep(doc: Doc) -> Doc:
+def fix_preposition_labeled_dep(nodes: List[TNode]) -> List[TNode]:
     """
     Fix: Preposition incorrectly labeled as 'dep'.
 
     Original tregex: /^l-(?:dep|rel)$/=relation < t-IN $ /^t-(?:IN|N|V|W?RB[RS]).*$/
-    Action: CHANGE_LABEL to 'l-prep'
-
-    Note: spaCy Doc dependencies are read-only. We store corrections in custom attributes.
+    Action: CHANGE_LABEL to 'l-prep' (UD: 'case')
     """
-    if not Token.has_extension('corrected_dep'):
-        Token.set_extension('corrected_dep', default=None)
+    for node in nodes:
+        if node.dep in ['dep', 'rel'] and node.pos == 'ADP':
+            # Get parent node
+            parent = find_node_by_index(nodes, node.head_index)
+            if parent:
+                # Check if sibling is noun/verb/adverb
+                siblings = [c for c in parent.children if c != node]
+                if any(s.pos in ['NOUN', 'VERB', 'ADV', 'ADJ'] for s in siblings):
+                    # Relabel as case
+                    node.corrected_dep = 'case'
+    return nodes
 
-    for token in doc:
-        if token.dep_ in ['dep', 'rel'] and token.pos_ == 'ADP':
-            # Check if sibling is noun/verb/adverb
-            siblings = [t for t in token.head.children if t != token]
-            if any(s.pos_ in ['NOUN', 'VERB', 'ADV', 'ADJ'] for s in siblings):
-                # Store corrected label (can't modify doc directly)
-                token._.corrected_dep = 'case'
-    return doc
 
-
-def fix_duplicate_nsubj(doc: Doc) -> Doc:
+def fix_duplicate_nsubj(nodes: List[TNode]) -> List[TNode]:
     """
     Fix: Two nsubj children (parser error).
 
     Original tregex: l-nsubj=relation $ l-nsubj
     Action: CHANGE_LABEL first to 'l-attr'
     """
-    for token in doc:
-        nsubj_children = get_children_by_dep(token, 'nsubj')
+    for node in nodes:
+        nsubj_children = node.get_children_by_dep('nsubj')
         if len(nsubj_children) > 1:
             # Change first nsubj to attr
-            nsubj_children[0].dep_ = 'attr'
-    return doc
+            nsubj_children[0].corrected_dep = 'attr'
+    return nodes
 
 
 # ==========================================================================================
 # WH-WORD EXTRACTION MARKING (Priority: 1)
 # ==========================================================================================
 
-def mark_wh_extraction(doc: Doc) -> Doc:
+def mark_wh_extraction(nodes: List[TNode]) -> List[TNode]:
     """
     Mark nodes that should be extracted (modified by wh-words).
 
@@ -95,25 +71,18 @@ def mark_wh_extraction(doc: Doc) -> Doc:
 
     UD equivalent: Mark extracted arguments with special flag.
     """
-    # Find all wh-words (PRON with PronType=Int or PronType=Rel)
-    wh_words = []
-    for token in doc:
-        if token.pos_ == 'PRON' and token.tag_.startswith('W'):
-            wh_words.append(token)
+    # Find all wh-words (PRON with tag starting with W)
+    wh_words = [n for n in nodes if n.pos == 'PRON' and n.tag.startswith('W')]
 
-    # Mark their heads for extraction
+    # Mark wh-words themselves if in extraction position
     for wh_word in wh_words:
-        head = wh_word.head
-        if head.dep_ in ['nsubj', 'nsubj:pass', 'attr', 'obj', 'obl', 'obl:tmod', 'dep']:
-            # Add extraction marker (custom attribute)
-            if not Token.has_extension('is_extracted'):
-                Token.set_extension('is_extracted', default=False)
-            head._.is_extracted = True
+        if wh_word.dep in ['nsubj', 'nsubj:pass', 'attr', 'obj', 'obl', 'obl:tmod', 'dep', 'pobj']:
+            wh_word.is_extracted = True
 
-    return doc
+    return nodes
 
 
-def relabel_wh_dependencies(doc: Doc) -> Doc:
+def relabel_wh_dependencies(nodes: List[TNode]) -> List[TNode]:
     """
     Relabel dependencies for extracted wh-arguments.
 
@@ -123,35 +92,32 @@ def relabel_wh_dependencies(doc: Doc) -> Doc:
     - l-attr with wh-marker → l-wh-attr
     - etc.
     """
-    if not Token.has_extension('is_extracted'):
-        return doc
-
-    for token in doc:
-        if token._.is_extracted:
+    for node in nodes:
+        if node.is_extracted:
             # Relabel dependency
-            if token.dep_ == 'nsubj':
-                token.dep_ = 'wh-nsubj'
-            elif token.dep_ == 'nsubj:pass':
-                token.dep_ = 'wh-nsubjpass'
-            elif token.dep_ == 'obj':
-                token.dep_ = 'wh-dobj'
-            elif token.dep_ == 'attr':
-                token.dep_ = 'wh-attr'
-            elif token.dep_ == 'advmod':
-                token.dep_ = 'wh-advmod'
-            elif token.dep_ in ['obl', 'obl:tmod']:
-                token.dep_ = 'wh-tmod'
-            elif token.dep_ == 'dep':
-                token.dep_ = 'wh-dep'
+            if node.dep == 'nsubj':
+                node.corrected_dep = 'wh-nsubj'
+            elif node.dep in ['nsubj:pass', 'nsubjpass']:
+                node.corrected_dep = 'wh-nsubjpass'
+            elif node.dep == 'obj':
+                node.corrected_dep = 'wh-dobj'
+            elif node.dep == 'attr':
+                node.corrected_dep = 'wh-attr'
+            elif node.dep == 'advmod':
+                node.corrected_dep = 'wh-advmod'
+            elif node.dep in ['obl', 'obl:tmod']:
+                node.corrected_dep = 'wh-tmod'
+            elif node.dep == 'dep':
+                node.corrected_dep = 'wh-dep'
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
 # CONJUNCTIONS (Priority: 1)
 # ==========================================================================================
 
-def disambiguate_conjunction_type(doc: Doc) -> Doc:
+def disambiguate_conjunction_type(nodes: List[TNode]) -> List[TNode]:
     """
     Distinguish S-level vs VP-level conjunction.
 
@@ -161,23 +127,25 @@ def disambiguate_conjunction_type(doc: Doc) -> Doc:
     - VP conjunction: l-conj $ /^t-V.*$/ [< (/^t-V.*$/ $ l-dobj) | ...]
       Example: Jobs "started" Apple and "founded" Google
     """
-    for token in doc:
-        if token.dep_ == 'conj' and token.head.pos_ == 'VERB':
-            # Check if conjunct has its own subject (S-level)
-            if has_dep(token, 'nsubj') or has_dep(token, 'nsubj:pass'):
-                token.dep_ = 'conj-s'  # Sentence-level conjunction
-            # Check if conjunct has object (VP-level)
-            elif has_dep(token, 'obj') or has_dep(token, 'obl'):
-                token.dep_ = 'conj-vp'  # VP-level conjunction
+    for node in nodes:
+        if node.dep == 'conj':
+            parent = find_node_by_index(nodes, node.head_index)
+            if parent and parent.pos == 'VERB':
+                # Check if conjunct has its own subject (S-level)
+                if node.has_dep('nsubj') or node.has_dep('nsubj:pass'):
+                    node.corrected_dep = 'conj-s'  # Sentence-level conjunction
+                # Check if conjunct has object (VP-level)
+                elif node.has_dep('obj') or node.has_dep('obl'):
+                    node.corrected_dep = 'conj-vp'  # VP-level conjunction
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
 # CONTROL (Priority: 1)
 # ==========================================================================================
 
-def add_control_subjects(doc: Doc) -> Doc:
+def add_control_subjects(nodes: List[TNode]) -> List[TNode]:
     """
     Add implicit subjects to xcomp based on control rules.
 
@@ -188,35 +156,33 @@ def add_control_subjects(doc: Doc) -> Doc:
       Example: "John asked Mary to leave" → "Mary" controls subject of "leave"
 
     Action: ADD_CHILD l-nsubj, ADD_CHILD l-extract, ADD_CHILD l-TRACE
-
-    Note: spaCy already has basic xcomp relations, but doesn't mark control explicitly.
-    We add custom attributes to track the controller.
     """
-    if not Token.has_extension('controller'):
-        Token.set_extension('controller', default=None)
-
-    for token in doc:
-        if token.dep_ == 'xcomp' and not has_dep(token, 'nsubj'):
-            verb = token.head
+    for node in nodes:
+        if node.dep == 'xcomp' and not node.has_dep('nsubj'):
+            verb = find_node_by_index(nodes, node.head_index)
+            if not verb:
+                continue
 
             # Subject control (default for most cases)
-            if has_dep(verb, 'nsubj') and not has_dep(verb, 'obj'):
-                nsubj = get_children_by_dep(verb, 'nsubj')[0]
-                token._.controller = nsubj
+            if verb.has_dep('nsubj') and not verb.has_dep('obj'):
+                nsubj_children = verb.get_children_by_dep('nsubj')
+                if nsubj_children:
+                    node.controller_index = nsubj_children[0].index
 
             # Object control (verbs like "ask", "tell", "force")
-            elif has_dep(verb, 'obj'):
-                obj = get_children_by_dep(verb, 'obj')[0]
-                token._.controller = obj
+            elif verb.has_dep('obj'):
+                obj_children = verb.get_children_by_dep('obj')
+                if obj_children:
+                    node.controller_index = obj_children[0].index
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
 # EXTRACTION (Priority: 1)
 # ==========================================================================================
 
-def add_extraction_markers(doc: Doc) -> Doc:
+def add_extraction_markers(nodes: List[TNode]) -> List[TNode]:
     """
     Add BIND nodes for relative clause extraction.
 
@@ -230,34 +196,31 @@ def add_extraction_markers(doc: Doc) -> Doc:
 
     Action: ADD_CHILD l-BIND
     """
-    if not Token.has_extension('has_bind'):
-        Token.set_extension('has_bind', default=False)
-
-    for token in doc:
+    for node in nodes:
         # Pobj extraction: Stranded prepositions
-        if token.pos_ in ['NOUN', 'VERB']:
-            # Check for prep without pobj
-            for child in token.children:
-                if child.dep_ == 'case' and not has_dep(child, 'obl'):
+        if node.pos in ['NOUN', 'VERB']:
+            # Check for case without obl
+            for child in node.children:
+                if child.get_dep() == 'case' and not node.has_dep('obl'):
                     # Mark for extraction
-                    token._.has_bind = True
+                    node.has_bind = True
 
         # Wh-nsubj extraction
-        if token.pos_ == 'VERB' and has_dep(token, 'wh-nsubj'):
-            token._.has_bind = True
+        if node.pos == 'VERB' and node.has_dep('wh-nsubj'):
+            node.has_bind = True
 
         # Wh-dobj extraction
-        if token.pos_ == 'VERB' and has_dep(token, 'wh-dobj'):
-            token._.has_bind = True
+        if node.pos == 'VERB' and node.has_dep('wh-dobj'):
+            node.has_bind = True
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
 # COPULA (Priority: 1)
 # ==========================================================================================
 
-def mark_copula_constructions(doc: Doc) -> Doc:
+def mark_copula_constructions(nodes: List[TNode]) -> List[TNode]:
     """
     Mark copular constructions.
 
@@ -267,55 +230,55 @@ def mark_copula_constructions(doc: Doc) -> Doc:
 
     Example: "Obama is the President" → nsubj-copula(is, Obama), attr-copula(is, President)
     """
-    for token in doc:
+    for node in nodes:
         # Find copular verbs (be, become, seem, etc.)
-        if token.lemma_ in ['be', 'become', 'seem', 'appear', 'remain'] and token.pos_ == 'VERB':
-            nsubj_children = get_children_by_dep(token, 'nsubj')
-            attr_children = get_children_by_dep(token, 'attr')
+        if node.lemma in ['be', 'become', 'seem', 'appear', 'remain'] and node.pos == 'VERB':
+            nsubj_children = node.get_children_by_dep('nsubj')
+            attr_children = node.get_children_by_dep('attr')
 
             if nsubj_children and attr_children:
                 # Mark as copular construction
-                nsubj_children[0].dep_ = 'nsubj-copula'
-                attr_children[0].dep_ = 'attr-copula'
+                nsubj_children[0].corrected_dep = 'nsubj-copula'
+                attr_children[0].corrected_dep = 'attr-copula'
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
 # MAIN TRANSFORMATION PIPELINE
 # ==========================================================================================
 
-def apply_all_transformations(doc: Doc) -> Doc:
+def apply_all_transformations(nodes: List[TNode]) -> List[TNode]:
     """
     Apply all tree transformations in priority order.
 
     Args:
-        doc: spaCy Doc object
+        nodes: List of TNodes
 
     Returns:
-        Transformed Doc with restructured dependency tree
+        Transformed TNodes with restructured dependency tree
     """
     # Priority 1: Parser bug fixes
-    doc = fix_preposition_labeled_dep(doc)
-    doc = fix_duplicate_nsubj(doc)
+    nodes = fix_preposition_labeled_dep(nodes)
+    nodes = fix_duplicate_nsubj(nodes)
 
     # Priority 1: Conjunction disambiguation
-    doc = disambiguate_conjunction_type(doc)
+    nodes = disambiguate_conjunction_type(nodes)
 
     # Priority 1: Wh-word extraction
-    doc = mark_wh_extraction(doc)
-    doc = relabel_wh_dependencies(doc)
+    nodes = mark_wh_extraction(nodes)
+    nodes = relabel_wh_dependencies(nodes)
 
     # Priority 1: Control
-    doc = add_control_subjects(doc)
+    nodes = add_control_subjects(nodes)
 
     # Priority 1: Extraction markers
-    doc = add_extraction_markers(doc)
+    nodes = add_extraction_markers(nodes)
 
     # Priority 1: Copula
-    doc = mark_copula_constructions(doc)
+    nodes = mark_copula_constructions(nodes)
 
-    return doc
+    return nodes
 
 
 # ==========================================================================================
@@ -324,6 +287,7 @@ def apply_all_transformations(doc: Doc) -> Doc:
 
 if __name__ == "__main__":
     import spacy
+    from .tnode import doc_to_tnodes, tnodes_to_tree_str
 
     nlp = spacy.load("en_core_web_sm")
 
@@ -338,12 +302,12 @@ if __name__ == "__main__":
 
     for sent in test_sentences:
         doc = nlp(sent)
+        nodes = doc_to_tnodes(doc)
+
         print(f"\n{sent}")
         print("  Before:")
-        for token in doc:
-            print(f"    {token.text} --{token.dep_}-> {token.head.text}")
+        print(tnodes_to_tree_str(nodes))
 
-        doc = apply_all_transformations(doc)
+        nodes = apply_all_transformations(nodes)
         print("  After:")
-        for token in doc:
-            print(f"    {token.text} --{token.dep_}-> {token.head.text}")
+        print(tnodes_to_tree_str(nodes))
