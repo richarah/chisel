@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+.Python
+env/
+venv/
+venv_old/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data - exclude all dataset files and folders
+data/*
+!data/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+*.json.gz
+*.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Outputs
+results/
+errors/
+*.log
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Agent-generated and temporary markdown files in root
+# Only keep README.md and allow docs in subdirectories
+/*.md
+!README.md
