@@ -1,0 +1,329 @@
+# IR Composition Templates
+#
+# Maps spaCy dependency patterns to lambda expression constructors.
+# Inspired by ccg2lambda's template design.
+#
+# Format:
+#   - name: Human-readable template name
+#     pattern: spaCy DependencyMatcher pattern
+#     constructor: Python callable from ir_vocabulary
+#     priority: Higher priority templates match first
+#
+# Variables in patterns:
+#   - $HEAD: The head token
+#   - $DEP: The dependent token
+#   - Schema-linked tokens have ._.schema_type attribute (table/column/value)
+
+# ==========================
+# COUNT QUERIES
+# ==========================
+
+- name: how_many_x
+  priority: 100
+  pattern:
+    - RIGHT_ID: many
+      RIGHT_ATTRS: {LEMMA: {IN: ["many", "much"]}}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: {IN: ["nsubj", "dobj", "attr"]}}
+      REL_OP: ">"
+      LEFT_ID: many
+  constructor: count
+  description: template_match
+
+- name: count_of_x
+  priority: 100
+  pattern:
+    - RIGHT_ID: count_word
+      RIGHT_ATTRS: {LEMMA: {IN: ["count", "number", "total"]}}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "prep"}
+      REL_OP: ">"
+      LEFT_ID: count_word
+  constructor: count
+  description: template_match
+
+# ==========================
+# SUPERLATIVES (ARGMAX/ARGMIN)
+# ==========================
+
+- name: x_with_highest_y
+  priority: 95
+  pattern:
+    - RIGHT_ID: highest
+      RIGHT_ATTRS: {LEMMA: {IN: ["highest", "largest", "maximum", "most", "greatest"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: highest
+  constructor: argmax
+  description: template_match
+
+- name: x_with_lowest_y
+  priority: 95
+  pattern:
+    - RIGHT_ID: lowest
+      RIGHT_ATTRS: {LEMMA: {IN: ["lowest", "smallest", "minimum", "least", "fewest"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: lowest
+  constructor: argmin
+  description: template_match
+
+- name: oldest_youngest
+  priority: 95
+  pattern:
+    - RIGHT_ID: superlative
+      RIGHT_ATTRS: {LEMMA: {IN: ["oldest", "youngest", "best", "worst"]}}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: {IN: ["nsubj", "dobj"]}}
+      REL_OP: ">"
+      LEFT_ID: superlative
+  constructor: argmax  # Direction determined by lemma
+  description: template_match
+
+# ==========================
+# AGGREGATIONS
+# ==========================
+
+- name: average_y_of_x
+  priority: 90
+  pattern:
+    - RIGHT_ID: average
+      RIGHT_ATTRS: {LEMMA: {IN: ["average", "mean"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: average
+  constructor: avg
+  description: template_match
+
+- name: total_y_of_x
+  priority: 90
+  pattern:
+    - RIGHT_ID: total
+      RIGHT_ATTRS: {LEMMA: {IN: ["total", "sum"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: total
+  constructor: sum_
+  description: template_match
+
+- name: minimum_y_of_x
+  priority: 90
+  pattern:
+    - RIGHT_ID: minimum
+      RIGHT_ATTRS: {LEMMA: "minimum"}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: minimum
+  constructor: min_
+  description: template_match
+
+- name: maximum_y_of_x
+  priority: 90
+  pattern:
+    - RIGHT_ID: maximum
+      RIGHT_ATTRS: {LEMMA: "maximum"}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: {IN: ["dobj", "attr", "pobj"]}}
+      REL_OP: ">"
+      LEFT_ID: maximum
+  constructor: max_
+  description: template_match
+
+# ==========================
+# FILTERS & WHERE CLAUSES
+# ==========================
+
+- name: x_that_y
+  priority: 85
+  pattern:
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+    - RIGHT_ID: that
+      RIGHT_ATTRS: {LEMMA: {IN: ["that", "which", "who", "where"]}}
+      REL_OP: ">"
+      LEFT_ID: x
+  constructor: filter_
+  description: template_match
+
+- name: x_with_y
+  priority: 80
+  pattern:
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+    - RIGHT_ID: with_word
+      RIGHT_ATTRS: {LEMMA: "with"}
+      REL_OP: ">"
+      LEFT_ID: x
+  constructor: filter_
+  description: template_match
+
+- name: x_above_y
+  priority: 80
+  pattern:
+    - RIGHT_ID: above
+      RIGHT_ATTRS: {LEMMA: {IN: ["above", "over", "more", "greater"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: above
+  constructor: gt
+  description: template_match
+
+- name: x_below_y
+  priority: 80
+  pattern:
+    - RIGHT_ID: below
+      RIGHT_ATTRS: {LEMMA: {IN: ["below", "under", "less", "fewer"]}}
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: below
+  constructor: lt
+  description: template_match
+
+- name: x_equal_y
+  priority: 80
+  pattern:
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+    - RIGHT_ID: equal
+      RIGHT_ATTRS: {LEMMA: {IN: ["equal", "same"]}}
+      REL_OP: ">"
+      LEFT_ID: x
+  constructor: eq
+  description: template_match
+
+# ==========================
+# SET OPERATIONS
+# ==========================
+
+- name: x_and_y_union
+  priority: 75
+  pattern:
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+    - RIGHT_ID: and_conj
+      RIGHT_ATTRS: {LEMMA: {IN: ["and", "or"]}}
+      REL_OP: ">"
+      LEFT_ID: x
+    - RIGHT_ID: y
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+      REL_OP: ">"
+      LEFT_ID: x
+  constructor: union_
+  description: template_match
+
+- name: x_but_not_y
+  priority: 75
+  pattern:
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {POS: {IN: ["NOUN", "PROPN"]}}
+    - RIGHT_ID: but
+      RIGHT_ATTRS: {LEMMA: "but"}
+      REL_OP: ">"
+      LEFT_ID: x
+    - RIGHT_ID: not_word
+      RIGHT_ATTRS: {LEMMA: "not"}
+      REL_OP: ">"
+      LEFT_ID: x
+  constructor: except_
+  description: template_match
+
+# ==========================
+# GROUP BY
+# ==========================
+
+- name: for_each_x
+  priority: 85
+  pattern:
+    - RIGHT_ID: each
+      RIGHT_ATTRS: {LEMMA: "each"}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: each
+  constructor: group_by
+  description: template_match
+
+- name: by_x
+  priority: 70
+  pattern:
+    - RIGHT_ID: by
+      RIGHT_ATTRS: {LEMMA: "by", DEP: "prep"}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: by
+  constructor: group_by
+  description: template_match
+
+# ==========================
+# QUANTIFIERS
+# ==========================
+
+- name: any_x
+  priority: 75
+  pattern:
+    - RIGHT_ID: any_word
+      RIGHT_ATTRS: {LEMMA: "any"}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "det"}
+      REL_OP: ">"
+      LEFT_ID: any_word
+  constructor: exists
+  description: template_match
+
+- name: no_x
+  priority: 75
+  pattern:
+    - RIGHT_ID: no_word
+      RIGHT_ATTRS: {LEMMA: "no"}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "det"}
+      REL_OP: ">"
+      LEFT_ID: no_word
+  constructor: not_exists
+  description: template_match
+
+- name: without_x
+  priority: 75
+  pattern:
+    - RIGHT_ID: without
+      RIGHT_ATTRS: {LEMMA: "without"}
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: without
+  constructor: not_exists
+  description: template_match
+
+# ==========================
+# ORDER BY
+# ==========================
+
+- name: ordered_by_x
+  priority: 70
+  pattern:
+    - RIGHT_ID: order
+      RIGHT_ATTRS: {LEMMA: {IN: ["order", "sort", "arrange"]}}
+    - RIGHT_ID: by
+      RIGHT_ATTRS: {LEMMA: "by"}
+      REL_OP: ">"
+      LEFT_ID: order
+    - RIGHT_ID: x
+      RIGHT_ATTRS: {DEP: "pobj"}
+      REL_OP: ">"
+      LEFT_ID: by
+  constructor: argmax  # argmax without LIMIT (compiler detects this)
+  description: template_match
+
+# ==========================
+# DEFAULT/FALLBACK
+# ==========================
+# Note: Simple fallback is handled in composer._simple_fallback()
+# Custom schema attributes (_.schema_type) don't work with DependencyMatcher

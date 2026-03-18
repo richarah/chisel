@@ -1,0 +1,356 @@
+# ==========================================================================================
+# DEPLAMBDA TEMPLATES - Ported from Reddy et al. (2016, TACL)
+# https://aclanthology.org/Q16-1010/
+# https://github.com/sivareddyg/deplambda
+#
+# Linguistic foundation rules for dependency → lambda conversion, extended with SQL combinators
+# Stanford dependencies mapped to Universal Dependencies for spaCy compatibility
+#
+# Mapping:
+#   dobj → obj
+#   nsubjpass → nsubj:pass (passive subject)
+#   prep → case (preposition marker)
+#   pobj → obl (oblique argument after preposition)
+#   nn → compound (noun compound)
+#   Other relations mostly stay the same (nsubj, xcomp, etc.)
+# ==========================================================================================
+
+# ==========================================================================================
+# CORE VERBAL ARGUMENTS (Priority: 45-10)
+# These establish the primary semantic frame of verbs
+# ==========================================================================================
+
+- name: nsubj
+  priority: 45
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: {IN: ["VERB", "AUX"]}}
+    - RIGHT_ID: subject
+      RIGHT_ATTRS: {DEP: "nsubj"}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: nsubj_relation
+  description: "Subject of verb"
+
+- name: nsubj_pass
+  priority: 45
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: "VERB", TAG: "VBN"}
+    - RIGHT_ID: subject
+      RIGHT_ATTRS: {DEP: {IN: ["nsubj", "nsubjpass"]}}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: nsubj_relation
+  description: "Passive subject"
+
+- name: obj
+  priority: 10
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: object
+      RIGHT_ATTRS: {DEP: {IN: ["obj", "dobj"]}}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: obj_relation
+  description: "Direct object"
+
+- name: iobj
+  priority: 40
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: iobject
+      RIGHT_ATTRS: {DEP: "iobj"}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: iobj_relation
+  description: "Indirect object"
+
+# ==========================================================================================
+# PREPOSITIONAL PHRASES (Priority: 30)
+# Handle prepositions and their objects
+# ==========================================================================================
+
+- name: prep_phrase
+  priority: 30
+  pattern:
+    - RIGHT_ID: head
+      RIGHT_ATTRS: {POS: {IN: ["VERB", "NOUN"]}}
+    - RIGHT_ID: prep
+      RIGHT_ATTRS: {DEP: "prep", POS: "ADP"}
+      REL_OP: ">"
+      LEFT_ID: head
+    - RIGHT_ID: pobj
+      RIGHT_ATTRS: {DEP: {IN: ["pobj", "obl"]}}
+      REL_OP: ">"
+      LEFT_ID: prep
+  constructor: prep_relation
+  description: "Prepositional phrase"
+
+# ==========================================================================================
+# CONTROL AND COMPLEMENTS (Priority: 20)
+# xcomp (to-infinitive), ccomp (that-clause)
+# ==========================================================================================
+
+- name: xcomp
+  priority: 20
+  pattern:
+    - RIGHT_ID: verb1
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: verb2
+      RIGHT_ATTRS: {DEP: "xcomp", POS: "VERB"}
+      REL_OP: ">"
+      LEFT_ID: verb1
+  constructor: xcomp_relation
+  description: "Open clausal complement"
+
+- name: ccomp
+  priority: 20
+  pattern:
+    - RIGHT_ID: verb1
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: verb2
+      RIGHT_ATTRS: {DEP: "ccomp", POS: "VERB"}
+      REL_OP: ">"
+      LEFT_ID: verb1
+  constructor: ccomp_relation
+  description: "Clausal complement"
+
+# ==========================================================================================
+# NOUN MODIFICATION (Priority: 2-50)
+# Adjectives, determiners, noun compounds, possessives
+# ==========================================================================================
+
+- name: amod
+  priority: 2
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: adj
+      RIGHT_ATTRS: {DEP: "amod", POS: "ADJ"}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: amod_relation
+  description: "Adjectival modifier"
+
+- name: compound
+  priority: 2
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: modifier
+      RIGHT_ATTRS: {DEP: {IN: ["compound", "nn"]}}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: compound_relation
+  description: "Noun compound"
+
+- name: det
+  priority: 30
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: det
+      RIGHT_ATTRS: {DEP: "det"}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: det_relation
+  description: "Determiner"
+
+- name: poss
+  priority: 50
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: possessor
+      RIGHT_ATTRS: {DEP: "poss"}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: poss_relation
+  description: "Possessive"
+
+- name: nummod
+  priority: 2
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: number
+      RIGHT_ATTRS: {DEP: {IN: ["nummod", "num"]}}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: nummod_relation
+  description: "Numeric modifier"
+
+# ==========================================================================================
+# VERB MODIFICATION (Priority: 50)
+# Adverbs, negation, modals, temporal modifiers
+# ==========================================================================================
+
+- name: advmod
+  priority: 50
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: adverb
+      RIGHT_ATTRS: {DEP: "advmod", POS: "ADV"}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: advmod_relation
+  description: "Adverbial modifier"
+
+- name: neg
+  priority: 35
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: {IN: ["VERB", "AUX"]}}
+    - RIGHT_ID: neg
+      RIGHT_ATTRS: {DEP: "neg"}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: negation
+  description: "Negation"
+
+- name: aux
+  priority: 10
+  pattern:
+    - RIGHT_ID: verb
+      RIGHT_ATTRS: {POS: "VERB"}
+    - RIGHT_ID: aux
+      RIGHT_ATTRS: {DEP: "aux", POS: "AUX"}
+      REL_OP: ">"
+      LEFT_ID: verb
+  constructor: aux_relation
+  description: "Auxiliary verb"
+
+# ==========================================================================================
+# RELATIVE CLAUSES (Priority: 70)
+# rcmod, partmod, relcl
+# ==========================================================================================
+
+- name: relcl
+  priority: 70
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: rel_verb
+      RIGHT_ATTRS: {DEP: {IN: ["relcl", "rcmod"]}, POS: "VERB"}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: relcl_relation
+  description: "Relative clause"
+
+- name: acl
+  priority: 70
+  pattern:
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {POS: "NOUN"}
+    - RIGHT_ID: acl_verb
+      RIGHT_ATTRS: {DEP: "acl", POS: "VERB"}
+      REL_OP: ">"
+      LEFT_ID: noun
+  constructor: acl_relation
+  description: "Clausal modifier of noun"
+
+# ==========================================================================================
+# COORDINATION (Priority: 35-95)
+# Handle "and", "or" conjunctions
+# ==========================================================================================
+
+- name: conj
+  priority: 35
+  pattern:
+    - RIGHT_ID: first
+      RIGHT_ATTRS: {}
+    - RIGHT_ID: cc
+      RIGHT_ATTRS: {DEP: "cc"}
+      REL_OP: ">"
+      LEFT_ID: first
+    - RIGHT_ID: second
+      RIGHT_ATTRS: {DEP: "conj"}
+      REL_OP: ">"
+      LEFT_ID: first
+  constructor: conj_relation
+  description: "Conjunction"
+
+# ==========================================================================================
+# SQL-SPECIFIC COMBINATORS
+# Extended from chisel/ir_vocabulary.py
+# ==========================================================================================
+
+- name: count_query
+  priority: 100
+  pattern:
+    - RIGHT_ID: many
+      RIGHT_ATTRS: {LEMMA: {IN: ["many", "much", "number"]}}
+    - RIGHT_ID: noun
+      RIGHT_ATTRS: {DEP: {IN: ["nsubj", "obj", "attr", "dobj"]}, POS: "NOUN"}
+      REL_OP: ">"
+      LEFT_ID: many
+  constructor: count
+  description: "COUNT aggregation"
+
+- name: superlative_max
+  priority: 95
+  pattern:
+    - RIGHT_ID: superlative
+      RIGHT_ATTRS: {LEMMA: {IN: ["highest", "largest", "maximum", "most", "greatest", "oldest", "best"]}}
+    - RIGHT_ID: measure
+      RIGHT_ATTRS: {POS: "NOUN"}
+      REL_OP: ">"
+      LEFT_ID: superlative
+  constructor: argmax
+  description: "ARGMAX (superlative)"
+
+- name: superlative_min
+  priority: 95
+  pattern:
+    - RIGHT_ID: superlative
+      RIGHT_ATTRS: {LEMMA: {IN: ["lowest", "smallest", "minimum", "least", "fewest", "youngest"]}}
+    - RIGHT_ID: measure
+      RIGHT_ATTRS: {POS: "NOUN"}
+      REL_OP: ">"
+      LEFT_ID: superlative
+  constructor: argmin
+  description: "ARGMIN (superlative)"
+
+- name: average
+  priority: 90
+  pattern:
+    - RIGHT_ID: avg_word
+      RIGHT_ATTRS: {LEMMA: {IN: ["average", "mean"]}}
+    - RIGHT_ID: measure
+      RIGHT_ATTRS: {POS: "NOUN"}
+      REL_OP: ">"
+      LEFT_ID: avg_word
+  constructor: avg
+  description: "AVG aggregation"
+
+- name: total_sum
+  priority: 90
+  pattern:
+    - RIGHT_ID: sum_word
+      RIGHT_ATTRS: {LEMMA: {IN: ["total", "sum"]}}
+    - RIGHT_ID: measure
+      RIGHT_ATTRS: {POS: "NOUN"}
+      REL_OP: ">"
+      LEFT_ID: sum_word
+  constructor: sum_
+  description: "SUM aggregation"
+
+# ==========================================================================================
+# DEFAULT FALLBACKS (Priority: 5-10)
+# ==========================================================================================
+
+- name: default_dep
+  priority: 5
+  pattern:
+    - RIGHT_ID: head
+      RIGHT_ATTRS: {}
+    - RIGHT_ID: child
+      RIGHT_ATTRS: {DEP: "dep"}
+      REL_OP: ">"
+      LEFT_ID: head
+  constructor: identity
+  description: "Default dependency"
