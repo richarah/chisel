@@ -11,7 +11,8 @@ Unlike deplambda's full event semantics, these focus on SQL operations:
 """
 
 from typing import Optional
-from nltk.sem.logic import Expression, ApplicationExpression, LambdaExpression, Variable
+from nltk.sem.drt import DrtExpression, DrtApplicationExpression, DrtLambdaExpression
+from nltk.sem.logic import Variable
 
 from . import ir_vocabulary as vocab
 
@@ -20,7 +21,7 @@ from . import ir_vocabulary as vocab
 # VERBAL ARGUMENTS (nsubj, obj, iobj)
 # ==========================================================================================
 
-def nsubj_relation(verb_expr: Expression, subject_expr: Expression) -> Expression:
+def nsubj_relation(verb_expr: DrtExpression, subject_expr: DrtExpression) -> DrtExpression:
     """
     Subject of verb.
 
@@ -36,7 +37,7 @@ def nsubj_relation(verb_expr: Expression, subject_expr: Expression) -> Expressio
     return vocab.filter_(subject_expr, verb_expr)
 
 
-def obj_relation(verb_expr: Expression, object_expr: Expression) -> Expression:
+def obj_relation(verb_expr: DrtExpression, object_expr: DrtExpression) -> DrtExpression:
     """
     Direct object of verb.
 
@@ -50,7 +51,7 @@ def obj_relation(verb_expr: Expression, object_expr: Expression) -> Expression:
     return vocab.filter_(verb_expr, object_expr)
 
 
-def iobj_relation(verb_expr: Expression, iobject_expr: Expression) -> Expression:
+def iobj_relation(verb_expr: DrtExpression, iobject_expr: DrtExpression) -> DrtExpression:
     """
     Indirect object of verb.
 
@@ -64,7 +65,7 @@ def iobj_relation(verb_expr: Expression, iobject_expr: Expression) -> Expression
 # PREPOSITIONAL PHRASES
 # ==========================================================================================
 
-def prep_relation(head_expr: Expression, prep_expr: Expression, pobj_expr: Expression) -> Expression:
+def prep_relation(head_expr: DrtExpression, prep_expr: DrtExpression, pobj_expr: DrtExpression) -> DrtExpression:
     """
     Prepositional phrase attachment.
 
@@ -84,7 +85,7 @@ def prep_relation(head_expr: Expression, prep_expr: Expression, pobj_expr: Expre
 # CONTROL AND COMPLEMENTS
 # ==========================================================================================
 
-def xcomp_relation(main_verb: Expression, complement_verb: Expression) -> Expression:
+def xcomp_relation(main_verb: DrtExpression, complement_verb: DrtExpression) -> DrtExpression:
     """
     Open clausal complement (infinitive).
 
@@ -98,7 +99,7 @@ def xcomp_relation(main_verb: Expression, complement_verb: Expression) -> Expres
     return vocab.filter_(main_verb, complement_verb)
 
 
-def ccomp_relation(main_verb: Expression, complement_clause: Expression) -> Expression:
+def ccomp_relation(main_verb: DrtExpression, complement_clause: DrtExpression) -> DrtExpression:
     """
     Clausal complement (that-clause).
 
@@ -112,7 +113,7 @@ def ccomp_relation(main_verb: Expression, complement_clause: Expression) -> Expr
 # NOUN MODIFICATION
 # ==========================================================================================
 
-def amod_relation(noun_expr: Expression, adj_expr: Optional[Expression] = None) -> Expression:
+def amod_relation(noun_expr: DrtExpression, adj_expr: Optional[DrtExpression] = None) -> DrtExpression:
     """
     Adjectival modifier.
 
@@ -130,7 +131,7 @@ def amod_relation(noun_expr: Expression, adj_expr: Optional[Expression] = None) 
     return noun_expr
 
 
-def compound_relation(head_noun: Expression, modifier_noun: Expression) -> Expression:
+def compound_relation(head_noun: DrtExpression, modifier_noun: DrtExpression) -> DrtExpression:
     """
     Noun compound (e.g., "employee salary").
 
@@ -144,7 +145,7 @@ def compound_relation(head_noun: Expression, modifier_noun: Expression) -> Expre
     return vocab.filter_(modifier_noun, head_noun)
 
 
-def det_relation(noun_expr: Expression, det_str: Optional[str] = None) -> Expression:
+def det_relation(noun_expr: DrtExpression, det_str: Optional[str] = None) -> DrtExpression:
     """
     Determiner (the, a, an).
 
@@ -159,7 +160,7 @@ def det_relation(noun_expr: Expression, det_str: Optional[str] = None) -> Expres
     return noun_expr
 
 
-def poss_relation(head_noun: Expression, possessor: Expression) -> Expression:
+def poss_relation(head_noun: DrtExpression, possessor: DrtExpression) -> DrtExpression:
     """
     Possessive (e.g., "John's department").
 
@@ -173,7 +174,7 @@ def poss_relation(head_noun: Expression, possessor: Expression) -> Expression:
     return vocab.filter_(head_noun, possessor)
 
 
-def nummod_relation(noun_expr: Expression, number: Optional[str] = None) -> Expression:
+def nummod_relation(noun_expr: DrtExpression, number: Optional[str] = None) -> DrtExpression:
     """
     Numeric modifier.
 
@@ -192,7 +193,7 @@ def nummod_relation(noun_expr: Expression, number: Optional[str] = None) -> Expr
 # VERB MODIFICATION
 # ==========================================================================================
 
-def advmod_relation(verb_expr: Expression, adverb: Optional[str] = None) -> Expression:
+def advmod_relation(verb_expr: DrtExpression, adverb: Optional[str] = None) -> DrtExpression:
     """
     Adverbial modifier.
 
@@ -207,7 +208,7 @@ def advmod_relation(verb_expr: Expression, adverb: Optional[str] = None) -> Expr
     return verb_expr
 
 
-def negation(verb_expr: Expression) -> Expression:
+def negation(verb_expr: DrtExpression) -> DrtExpression:
     """
     Negation (not, n't).
 
@@ -221,7 +222,7 @@ def negation(verb_expr: Expression) -> Expression:
     return vocab.not_exists(verb_expr)
 
 
-def aux_relation(main_verb: Expression, auxiliary: Optional[str] = None) -> Expression:
+def aux_relation(main_verb: DrtExpression, auxiliary: Optional[str] = None) -> DrtExpression:
     """
     Auxiliary verb (will, can, do, be, have).
 
@@ -240,7 +241,7 @@ def aux_relation(main_verb: Expression, auxiliary: Optional[str] = None) -> Expr
 # RELATIVE CLAUSES
 # ==========================================================================================
 
-def relcl_relation(noun_expr: Expression, rel_clause: Expression) -> Expression:
+def relcl_relation(noun_expr: DrtExpression, rel_clause: DrtExpression) -> DrtExpression:
     """
     Relative clause (e.g., "employees who work").
 
@@ -254,7 +255,7 @@ def relcl_relation(noun_expr: Expression, rel_clause: Expression) -> Expression:
     return vocab.filter_(noun_expr, rel_clause)
 
 
-def acl_relation(noun_expr: Expression, acl_clause: Expression) -> Expression:
+def acl_relation(noun_expr: DrtExpression, acl_clause: DrtExpression) -> DrtExpression:
     """
     Adjectival clause (e.g., "person hired yesterday").
 
@@ -268,7 +269,7 @@ def acl_relation(noun_expr: Expression, acl_clause: Expression) -> Expression:
 # COORDINATION
 # ==========================================================================================
 
-def conj_relation(first_expr: Expression, second_expr: Expression, cc: str = "and") -> Expression:
+def conj_relation(first_expr: DrtExpression, second_expr: DrtExpression, cc: str = "and") -> DrtExpression:
     """
     Conjunction (and, or).
 
@@ -292,7 +293,7 @@ def conj_relation(first_expr: Expression, second_expr: Expression, cc: str = "an
 # DEFAULT FALLBACK
 # ==========================================================================================
 
-def identity(expr: Expression) -> Expression:
+def identity(expr: DrtExpression) -> DrtExpression:
     """
     Identity function (no transformation).
 
@@ -302,7 +303,7 @@ def identity(expr: Expression) -> Expression:
     return expr
 
 
-def compose_predicates(expr1: Expression, expr2: Expression) -> Expression:
+def compose_predicates(expr1: DrtExpression, expr2: DrtExpression) -> DrtExpression:
     """
     Generic composition of two predicates.
 

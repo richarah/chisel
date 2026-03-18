@@ -12,6 +12,7 @@ Architecture:
 """
 
 from typing import Optional, List, Set, Tuple
+from nltk.sem.drt import DrtExpression, DrtApplicationExpression, DrtLambdaExpression
 from nltk.sem.logic import Expression, ApplicationExpression, LambdaExpression
 
 import sqlglot
@@ -37,26 +38,36 @@ class IRCompiler:
         """
         self.schema = schema
 
-    def compile(self, lambda_expr: Expression, verbose: bool = False) -> Optional[str]:
+    def compile(self, lambda_expr: DrtExpression, verbose: bool = False) -> Optional[str]:
         """
-        Compile lambda expression to SQL.
+        Compile DRT expression to SQL.
 
         Args:
-            lambda_expr: NLTK lambda expression
+            lambda_expr: NLTK DRT expression (DRS)
             verbose: Print compilation steps
 
         Returns:
             SQL string or None if compilation fails
         """
         try:
+            # Convert DRS to FOL for compilation
+            if hasattr(lambda_expr, 'fol'):
+                fol_expr = lambda_expr.fol()
+                if verbose:
+                    print(f"[IR Compiler] DRS: {lambda_expr}")
+                    print(f"[IR Compiler] FOL: {fol_expr}")
+            else:
+                # Already FOL (fallback)
+                fol_expr = lambda_expr
+
             # Convert to string for pattern matching
-            expr_str = str(lambda_expr)
+            expr_str = str(fol_expr)
 
             if verbose:
                 print(f"[IR Compiler] Compiling: {expr_str}")
 
-            # Pattern match on expression structure
-            sql_ast = self._compile_expression(lambda_expr)
+            # Pattern match on expression structure (on FOL, not DRS)
+            sql_ast = self._compile_expression(fol_expr)
 
             if sql_ast is None:
                 if verbose:

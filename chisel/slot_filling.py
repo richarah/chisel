@@ -42,41 +42,81 @@ class FilledSQL:
         Build SQL string using sqlglot AST.
         sqlglot does all the hard work of generating valid SQL.
         """
-        # Start with SELECT
-        select = exp.Select()
-
-        # Add DISTINCT if needed
-        if self.distinct:
-            select.set("distinct", exp.Distinct())
-
-        # Add SELECT columns
+        # Build SELECT expressions list
         if self.select_columns:
-            for col_exp in self.select_columns:
-                select.append("expressions", col_exp)
+            expressions = self.select_columns
         else:
             # Default: SELECT *
-            select.append("expressions", exp.Star())
+            expressions = [exp.Star()]
 
-        # Add FROM
+        # Build FROM clause
+        from_clause = None
         if self.from_table:
-            from_exp = exp.From(this=exp.Table(this=exp.Identifier(this=self.from_table)))
-            select.set("from", from_exp)
+            from_clause = exp.From(this=exp.Table(this=self.from_table))
 
-        # Add JOINs (sqlglot builds these)
-        if self.join_clauses:
-            current_table = exp.Table(this=exp.Identifier(this=self.from_table))
+        # Build WHERE clause
+        where_clause = None
+        if self.where_conditions:
+            combined_where = self.where_conditions[0]
+            for cond in self.where_conditions[1:]:
+                combined_where = exp.And(this=combined_where, expression=cond)
+            where_clause = exp.Where(this=combined_where)
 
+        # Build GROUP BY clause
+        group_clause = None
+        if self.group_by_columns:
+            group_clause = exp.Group(expressions=self.group_by_columns)
+
+        # Build HAVING clause
+        having_clause = None
+        if self.having_conditions:
+            combined_having = self.having_conditions[0]
+            for cond in self.having_conditions[1:]:
+                combined_having = exp.And(this=combined_having, expression=cond)
+            having_clause = exp.Having(this=combined_having)
+
+        # Build ORDER BY clause
+        order_clause = None
+        if self.order_by_columns:
+            ordered_exprs = [
+                exp.Ordered(this=col_exp, desc=is_desc)
+                for col_exp, is_desc in self.order_by_columns
+            ]
+            order_clause = exp.Order(expressions=ordered_exprs)
+
+        # Build LIMIT clause
+        limit_clause = None
+        if self.limit_value:
+            limit_clause = exp.Limit(expression=exp.Literal.number(self.limit_value))
+
+        # Build DISTINCT
+        distinct_clause = exp.Distinct() if self.distinct else None
+
+        # Create SELECT using constructor with named parameters
+        select = exp.Select(
+            expressions=expressions,
+            from_=from_clause,
+            where=where_clause,
+            group=group_clause,
+            having=having_clause,
+            order=order_clause,
+            limit=limit_clause,
+            distinct=distinct_clause
+        )
+
+        # Add JOINs (must use append after construction)
+        if self.join_clauses and from_clause:
             for join_info in self.join_clauses:
-                right_table = exp.Table(this=exp.Identifier(this=join_info["right_table"]))
+                right_table = exp.Table(this=join_info["right_table"])
 
                 # Build ON condition: left.col = right.col
                 left_col = exp.Column(
-                    this=exp.Identifier(this=join_info["left_col"]),
-                    table=exp.Identifier(this=join_info["left_table"])
+                    this=join_info["left_col"],
+                    table=join_info["left_table"]
                 )
                 right_col = exp.Column(
-                    this=exp.Identifier(this=join_info["right_col"]),
-                    table=exp.Identifier(this=join_info["right_table"])
+                    this=join_info["right_col"],
+                    table=join_info["right_table"]
                 )
                 on_condition = exp.EQ(this=left_col, expression=right_col)
 
@@ -86,39 +126,6 @@ class FilledSQL:
                     kind="INNER"
                 )
                 select.append("joins", join)
-
-        # Add WHERE conditions
-        if self.where_conditions:
-            combined_where = self.where_conditions[0]
-            for cond in self.where_conditions[1:]:
-                combined_where = exp.And(this=combined_where, expression=cond)
-            select.set("where", exp.Where(this=combined_where))
-
-        # Add GROUP BY
-        if self.group_by_columns:
-            group = exp.Group()
-            for col_exp in self.group_by_columns:
-                group.append("expressions", col_exp)
-            select.set("group", group)
-
-        # Add HAVING
-        if self.having_conditions:
-            combined_having = self.having_conditions[0]
-            for cond in self.having_conditions[1:]:
-                combined_having = exp.And(this=combined_having, expression=cond)
-            select.set("having", exp.Having(this=combined_having))
-
-        # Add ORDER BY
-        if self.order_by_columns:
-            order = exp.Order()
-            for col_exp, is_desc in self.order_by_columns:
-                ordered = exp.Ordered(this=col_exp, desc=is_desc)
-                order.append("expressions", ordered)
-            select.set("order", order)
-
-        # Add LIMIT
-        if self.limit_value:
-            select.set("limit", exp.Limit(expression=exp.Literal.number(self.limit_value)))
 
         # Generate SQL string (sqlglot does this)
         return select.sql()
@@ -160,12 +167,36 @@ def fill_sql_skeleton(
     value_links = get_value_links(links)
 
     # Determine which tables are involved
-    involved_tables = get_tables_from_links(links)
+    # Strategy: Use minimal set of tables that covers all required columns
+    involved_tables = set()
 
+    # First priority: explicit high-confidence table links (e.g., "from singer")
+    high_conf_tables = [link for link in table_links if link.score >= 85]
+    if high_conf_tables:
+        # Use single table if high confidence
+        involved_tables.add(high_conf_tables[0].table_name)
+
+    # Second priority: tables from high-confidence column links
     if not involved_tables:
-        # Try to infer from table links
+        high_conf_columns = [link for link in column_links if link.score >= 85]
+        if high_conf_columns:
+            # Use primary table from highest scoring column
+            primary_table = high_conf_columns[0].table_name
+            involved_tables.add(primary_table)
+
+            # Add other tables only if columns from them are explicitly needed
+            for link in high_conf_columns[1:]:
+                if link.table_name != primary_table:
+                    # Only add if this is a different high-confidence match
+                    if link.score >= 90:
+                        involved_tables.add(link.table_name)
+
+    # Fallback: use any linked tables
+    if not involved_tables:
         if table_links:
-            involved_tables = {link.table_name for link in table_links}
+            involved_tables.add(table_links[0].table_name)
+        elif column_links:
+            involved_tables.add(column_links[0].table_name)
 
     if not involved_tables:
         # No tables identified - can't build query
@@ -222,13 +253,23 @@ def fill_sql_skeleton(
     else:
         # Regular SELECT - add relevant columns
         if column_links:
-            # Use top N column links
-            for col_link in column_links[:5]:  # Limit to top 5
-                col_exp = exp.Column(
-                    this=exp.Identifier(this=col_link.column_name),
-                    table=exp.Identifier(this=col_link.table_name)
-                )
-                filled.select_columns.append(col_exp)
+            # Filter to high-confidence column links from involved tables
+            relevant_columns = [
+                link for link in column_links
+                if link.table_name in involved_tables and link.score >= 80
+            ]
+
+            if relevant_columns:
+                # Use top 5 high-confidence columns
+                for col_link in relevant_columns[:5]:
+                    col_exp = exp.Column(
+                        this=exp.Identifier(this=col_link.column_name),
+                        table=exp.Identifier(this=col_link.table_name)
+                    )
+                    filled.select_columns.append(col_exp)
+            else:
+                # No high-confidence columns - SELECT *
+                filled.select_columns = []
         else:
             # No specific columns - SELECT *
             filled.select_columns = []

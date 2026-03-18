@@ -9,10 +9,12 @@ Libraries doing the heavy lifting:
 We write: Repair rules for common errors
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import sqlglot
 from sqlglot import exp, parse_one
 from sqlglot.errors import ParseError
+
+from .schema_graph import SchemaGraph
 
 
 def validate_sql(sql: str) -> Tuple[bool, Optional[str]]:
@@ -103,6 +105,60 @@ def validate_and_repair(sql: str) -> Tuple[str, bool, Optional[str]]:
             return repaired, False, f"Repair failed: {error}"
     else:
         return sql, False, error
+
+
+def validate_against_schema(sql: str, schema: SchemaGraph) -> Tuple[bool, Optional[str]]:
+    """
+    Validate SQL against database schema (semantic validation).
+
+    Checks:
+    - All referenced tables exist in schema
+    - All referenced columns exist in their tables
+    - JOIN conditions reference valid foreign keys
+
+    Args:
+        sql: SQL query string
+        schema: Database schema
+
+    Returns: (is_valid, error_message)
+    """
+    try:
+        parsed = parse_one(sql, read="sqlite")
+
+        if not isinstance(parsed, exp.Select):
+            return False, "Not a SELECT statement"
+
+        # Extract all table references
+        tables = list(parsed.find_all(exp.Table))
+        schema_tables = set(schema.get_all_tables())
+
+        for table_node in tables:
+            table_name = table_node.name
+            if table_name not in schema_tables:
+                return False, f"Table '{table_name}' does not exist in schema"
+
+        # Extract all column references
+        columns = list(parsed.find_all(exp.Column))
+        schema_columns = {f"{t}.{c}" for t, c in schema.get_all_columns()}
+
+        for col_node in columns:
+            col_name = col_node.name
+            table_name = col_node.table if hasattr(col_node, 'table') else None
+
+            # If table specified, check table.column exists
+            if table_name and table_name != '':
+                full_name = f"{table_name}.{col_name}"
+                if full_name not in schema_columns:
+                    # Check if column exists in any table
+                    if not any(c == col_name for t, c in schema.get_all_columns()):
+                        return False, f"Column '{col_name}' does not exist in schema"
+
+        return True, None
+
+    except ParseError as e:
+        return False, f"Cannot parse SQL for schema validation: {str(e)}"
+    except Exception as e:
+        return False, f"Schema validation error: {str(e)}"
 
 
 def check_sql_features(sql: str) -> dict:

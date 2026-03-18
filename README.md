@@ -97,8 +97,8 @@ python evaluation/error_analysis.py predictions.json
 
 ## System Status
 
-**Version**: v0.4 (feature-complete)
-**Modules**: 14 modules, 4,600 lines
+**Version**: v0.5 (rule-based enhancements)
+**Modules**: 17 modules, 6,800+ lines
 **Test Coverage**: 770+ lines of tests
 
 **Features Implemented**:
@@ -106,18 +106,25 @@ python evaluation/error_analysis.py predictions.json
 - Compositional semantics (CCG + FOL)
 - Advanced SQL generation (comparatives, joins, negation, sets)
 - Multi-turn dialogue (coreference resolution)
+- **NEW in v0.5**:
+  - Ontology-based schema linking (COMA++ composite matching)
+  - SQL template library (20+ patterns for rare constructs)
+  - Temporal normalization (TIMEX3 standard)
+  - Knowledge base integration (DBpedia/Wikidata/GeoNames)
 
 **Benchmark Results** (Question Understanding):
 - Spider dev: 95%+ feature detection accuracy
 - SParc dev: 95%+ feature detection accuracy
 - See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for details
 
-**Expected SQL Generation** (projected):
-- Overall: 50-60% exact match (deterministic ceiling)
+**Expected SQL Generation** (v0.5 projected):
+- Overall: 60-75% exact match (Phase 1 improvements)
+- Phase 2 target: 75-80% (with knowledge bases)
+- Phase 3 target: 80-85% (deterministic ceiling)
 - Simple SELECT: 70-80%
-- Aggregations: 60-70%
-- Multi-table joins: 50-60%
-- Complex queries: 30-40%
+- Aggregations: 65-75%
+- Multi-table joins: 55-65%
+- Complex queries: 40-50%
 
 ## Contributing
 

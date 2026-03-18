@@ -20,7 +20,7 @@ import yaml
 import spacy
 from spacy.tokens import Token, Doc
 from spacy.matcher import DependencyMatcher
-from nltk.sem.logic import Expression
+from nltk.sem.drt import DrtExpression
 
 from . import ir_vocabulary as vocab
 from . import deplambda_constructors as dlambda
@@ -124,9 +124,9 @@ class IRComposer:
         question: str,
         analysis: QuestionAnalysis,
         links: List[SchemaLink]
-    ) -> Optional[Expression]:
+    ) -> Optional[DrtExpression]:
         """
-        Build lambda expression from question analysis.
+        Build DRT expression from question analysis.
 
         Args:
             question: Original English question
@@ -134,7 +134,7 @@ class IRComposer:
             links: Schema links from schema linking stage
 
         Returns:
-            Lambda expression or None if composition fails
+            DRT expression or None if composition fails
         """
         # Parse question with spaCy if not already done
         if not hasattr(analysis, 'doc') or analysis.doc is None:
@@ -244,9 +244,9 @@ class IRComposer:
         doc: Doc,
         links: List[SchemaLink],
         analysis: QuestionAnalysis
-    ) -> Optional[Expression]:
+    ) -> Optional[DrtExpression]:
         """
-        Build lambda expression from matched template and tokens.
+        Build DRT expression from matched template and tokens.
 
         Args:
             template: Matched template
@@ -257,7 +257,7 @@ class IRComposer:
             analysis: Question analysis with question_type
 
         Returns:
-            Lambda expression or None
+            DRT expression or None
         """
         # Extract arguments based on template type
         constructor_name = template.constructor
@@ -323,7 +323,7 @@ class IRComposer:
 
         return None
 
-    def _extract_base_set(self, tokens: List[Token], links: List[SchemaLink]) -> Optional[Expression]:
+    def _extract_base_set(self, tokens: List[Token], links: List[SchemaLink]) -> Optional[DrtExpression]:
         """Extract base set predicate from tokens."""
         # Look for schema-linked table
         for token in tokens:
@@ -342,7 +342,7 @@ class IRComposer:
         self,
         tokens: List[Token],
         links: List[SchemaLink]
-    ) -> Tuple[Optional[Expression], Optional[Expression]]:
+    ) -> Tuple[Optional[DrtExpression], Optional[DrtExpression]]:
         """Extract set predicate and measurement function from tokens."""
         from .schema_linking import get_table_links, get_column_links
 
@@ -378,7 +378,7 @@ class IRComposer:
         self,
         tokens: List[Token],
         links: List[SchemaLink]
-    ) -> Tuple[Optional[Expression], Optional[Expression]]:
+    ) -> Tuple[Optional[DrtExpression], Optional[DrtExpression]]:
         """Extract two set predicates for filter operations."""
         # For now, return base set and True
         # TODO: Extract actual filter condition
@@ -390,7 +390,7 @@ class IRComposer:
         self,
         tokens: List[Token],
         links: List[SchemaLink]
-    ) -> Tuple[Optional[Expression], Optional[Expression]]:
+    ) -> Tuple[Optional[DrtExpression], Optional[DrtExpression]]:
         """Extract property function and comparison value."""
         from .schema_linking import get_column_links
 
@@ -414,10 +414,10 @@ class IRComposer:
 
     def _add_projection_if_needed(
         self,
-        expr: Expression,
+        expr: DrtExpression,
         links: List[SchemaLink],
         analysis: QuestionAnalysis
-    ) -> Expression:
+    ) -> DrtExpression:
         """
         Wrap expression with PROJECT if columns are explicitly mentioned in question.
 
@@ -487,7 +487,7 @@ class IRComposer:
         self,
         analysis: QuestionAnalysis,
         links: List[SchemaLink]
-    ) -> Optional[Expression]:
+    ) -> Optional[DrtExpression]:
         """
         Simple fallback when no templates match.
 

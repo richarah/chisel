@@ -1,0 +1,74 @@
+{
+  "config": {
+    "num_samples": 50,
+    "tables_path": "data/spider/tables.json",
+    "dev_path": "data/spider/dev.json"
+  },
+  "baseline": {
+    "version": "v0.4-baseline",
+    "exact_match_percent": 4.0,
+    "failure_percent": 0.0,
+    "avg_time": 2.7103168106079103
+  },
+  "enhanced": {
+    "version": "v0.5-enhanced",
+    "exact_match_percent": 4.0,
+    "failure_percent": 0.0,
+    "avg_time": 1.806918683052063
+  },
+  "comparison": {
+    "baseline": {
+      "version": "v0.4-baseline",
+      "exact_match": 4.0,
+      "failures": 0.0,
+      "avg_time": 2.7103168106079103
+    },
+    "enhanced": {
+      "version": "v0.5-enhanced",
+      "exact_match": 4.0,
+      "failures": 0.0,
+      "avg_time": 1.806918683052063
+    },
+    "delta": {
+      "exact_match": 0.0,
+      "failures": 0.0,
+      "avg_time": -0.9033981275558474
+    },
+    "overfitting": {
+      "baseline": {
+        "db_accuracies": {
+          "concert_singer": 4.444444444444445,
+          "pets_1": 0.0
+        },
+        "accuracy_variance": 9.876543209876544,
+        "accuracy_stdev": 3.1426968052735447,
+        "db_acc_range": 4.444444444444445,
+        "max_db_acc": 4.444444444444445,
+        "min_db_acc": 0.0,
+        "pattern_diversity": 0.2,
+        "total_patterns": 10,
+        "overfitting_indicators": [
+          "LOW DIVERSITY: Only 10 unique SQL patterns for 50 questions"
+        ],
+        "overfitting_risk": "HIGH"
+      },
+      "enhanced": {
+        "db_accuracies": {
+          "concert_singer": 4.444444444444445,
+          "pets_1": 0.0
+        },
+        "accuracy_variance": 9.876543209876544,
+        "accuracy_stdev": 3.1426968052735447,
+        "db_acc_range": 4.444444444444445,
+        "max_db_acc": 4.444444444444445,
+        "min_db_acc": 0.0,
+        "pattern_diversity": 0.2,
+        "total_patterns": 10,
+        "overfitting_indicators": [
+          "LOW DIVERSITY: Only 10 unique SQL patterns for 50 questions"
+        ],
+        "overfitting_risk": "HIGH"
+      }
+    }
+  }
+}

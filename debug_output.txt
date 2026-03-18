@@ -1,0 +1,1167 @@
+[WARN] SPARQLWrapper not installed. SPARQL queries disabled.
+Loading Spider dev set...
+Loaded 50 examples
+
+Creating pipelines...
+Loading schemas from Spider...
+Loaded 166 database schemas
+Loading spaCy model...
+  [OK] lemminflect integration enabled
+  [OK] Temporal normalization enabled
+Pipeline initialized.
+Loading schemas from Spider...
+Loaded 166 database schemas
+Loading spaCy model...
+  [OK] lemminflect integration enabled
+  [OK] Temporal normalization enabled
+Pipeline initialized.
+[OK] Pipelines created
+
+
+================================================================================
+[1/50] Question: How many singers do we have?
+DB: concert_singer
+Gold SQL: SELECT count(*) FROM singer
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_LIKE', 'COUNT'}
+  Content words: ['singer']
+  Question type: count
+
+[Task 3] Linking to schema...
+  Found 22 links
+    'singer' -> singer (exact, 100.0)
+    'how many singers' -> singer (fuzzy, 90.0)
+    'we' -> stadium.lowest (fuzzy, 90.0)
+    'singer' -> singer_in_concert (fuzzy, 90.0)
+    'many singer' -> singer (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: False
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[BASELINE] Generated: SELECT COUNT(*) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_LIKE', 'COUNT'}
+  Content words: ['singer']
+  Question type: count
+
+[Task 3] Linking to schema...
+  Basic links: 22, Composite links: 0, Merged: 7
+  Found 7 links
+    'we' -> stadium.lowest (fuzzy, 90.0)
+    'singer' -> stadium.name (fuzzy, 88.0)
+    'singer' -> singer.name (fuzzy, 88.0)
+    'singer do' -> singer (fuzzy, 85.7)
+    'singer do' -> singer_in_concert (fuzzy, 77.1)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: False
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[ENHANCED] Generated: SELECT COUNT(*) FROM singer
+
+[RESULTS]
+  Baseline correct: True
+  Enhanced correct: True
+
+================================================================================
+[2/50] Question: What is the total number of singers?
+DB: concert_singer
+Gold SQL: SELECT count(*) FROM singer
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'SUM', 'WHERE_EQ', 'COUNT', 'EXISTS'}
+  Content words: ['total', 'number', 'singer']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 46 links
+    'singer' -> singer (exact, 100.0)
+    'singers' -> singer (fuzzy, 100.0)
+    'number' -> concert (fuzzy, 96.2)
+    'number' -> stadium.name (fuzzy, 95.7)
+    'number' -> singer.name (fuzzy, 95.7)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[BASELINE] Generated: SELECT COUNT(*) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'SUM', 'WHERE_EQ', 'COUNT', 'EXISTS'}
+  Content words: ['total', 'number', 'singer']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 46, Composite links: 1, Merged: 18
+  Found 18 links
+    'number' -> concert (fuzzy, 96.2)
+    'number' -> stadium.average (fuzzy, 94.0)
+    'number' -> singer.age (fuzzy, 91.8)
+    'number' -> concert.year (fuzzy, 91.4)
+    'number' -> stadium (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM concert
+[ENHANCED] Generated: SELECT COUNT(*) FROM concert
+
+[RESULTS]
+  Baseline correct: True
+  Enhanced correct: False
+  ⚠ REGRESSION: Baseline was correct, enhanced is wrong!
+
+================================================================================
+[3/50] Question: Show name, country, age for all singers ordered by age from the oldest to the youngest.
+DB: concert_singer
+Gold SQL: SELECT name ,  country ,  age FROM singer ORDER BY age DESC
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'GROUP_BY', 'LIMIT', 'ORDER_ASC'}
+  Content words: ['country', 'age', 'singer', 'order', 'age', 'old', 'young']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Found 64 links
+    'country' -> singer.country (exact, 100.0)
+    'age' -> singer.age (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'young' -> singer (fuzzy, 96.1)
+    'age' -> concert.year (fuzzy, 95.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: False
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.country, singer.age, singer.country, singer.country, singer.age FROM singer ORDER BY singer.country ASC NULLS LAST LIMIT 1
+[BASELINE] Generated: SELECT DISTINCT singer.country, singer.age, singer.country, singer.country, singer.age FROM singer ORDER BY singer.country ASC NULLS LAST LIMIT 1
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'GROUP_BY', 'LIMIT', 'ORDER_ASC'}
+  Content words: ['country', 'age', 'singer', 'order', 'age', 'old', 'young']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Basic links: 64, Composite links: 2, Merged: 16
+  Found 16 links
+    'order' -> stadium.location (fuzzy, 94.0)
+    'singer order by' -> singer (fuzzy, 90.0)
+    'singer' -> singer_in_concert (fuzzy, 90.0)
+    'order' -> concert.theme (fuzzy, 90.0)
+    'age' -> stadium.capacity (fuzzy, 88.5)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: False
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.name, singer.country, singer.age FROM singer ORDER BY singer.name ASC NULLS LAST LIMIT 1
+[ENHANCED] Generated: SELECT DISTINCT singer.name, singer.country, singer.age FROM singer ORDER BY singer.name ASC NULLS LAST LIMIT 1
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[4/50] Question: What are the names, countries, and ages for every singer in descending order of age?
+DB: concert_singer
+Gold SQL: SELECT name ,  country ,  age FROM singer ORDER BY age DESC
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'ORDER_DESC', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['name', 'country', 'age', 'singer', 'descend', 'order', 'age']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 85 links
+    'age' -> singer.age (exact, 100.0)
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'country' -> singer.country (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.name, singer.country, singer.country, singer.age FROM singer ORDER BY singer.age DESC
+[BASELINE] Generated: SELECT DISTINCT singer.age, singer.name, singer.country, singer.country, singer.age FROM singer ORDER BY singer.age DESC
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'ORDER_DESC', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['name', 'country', 'age', 'singer', 'descend', 'order', 'age']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 85, Composite links: 5, Merged: 17
+  Found 17 links
+    'singer in' -> singer_in_concert (fuzzy, 90.0)
+    'age' -> stadium.capacity (fuzzy, 88.5)
+    'singer' -> stadium.name (fuzzy, 88.0)
+    'singer' -> singer.name (fuzzy, 88.0)
+    ', country ,' -> singer.country (fuzzy, 87.5)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT * FROM singer_in_concert ORDER BY stadium.capacity DESC
+[ENHANCED] Generated: SELECT DISTINCT * FROM singer_in_concert ORDER BY stadium.capacity DESC
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[5/50] Question: What is the average, minimum, and maximum age of all singers from France?
+DB: concert_singer
+Gold SQL: SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'MIN', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'minimum', 'maximum', 'age', 'singer', 'france']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 56 links
+    'average' -> stadium.average (exact, 100.0)
+    'age' -> singer.age (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'france' -> singer.country (fuzzy, 96.7)
+    'France' -> singer.country (fuzzy, 96.7)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(stadium.average) FROM singer WHERE singer.country = 'France'
+[BASELINE] Generated: SELECT MAX(stadium.average) FROM singer WHERE singer.country = 'France'
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'MIN', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'minimum', 'maximum', 'age', 'singer', 'france']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 56, Composite links: 2, Merged: 14
+  Found 14 links
+    'age' -> concert.year (fuzzy, 95.0)
+    'singer' -> singer_in_concert (fuzzy, 90.0)
+    'France' -> <value> (value, 90.0)
+    'average' -> concert.theme (fuzzy, 88.9)
+    'maximum' -> singer.age (fuzzy, 88.5)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(concert.year) FROM singer_in_concert WHERE concert.year = 'France'
+[ENHANCED] Generated: SELECT MAX(concert.year) FROM singer_in_concert WHERE concert.year = 'France'
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[6/50] Question: What is the average, minimum, and maximum age for all French singers?
+DB: concert_singer
+Gold SQL: SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'MIN', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'minimum', 'maximum', 'age', 'french', 'singer']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 53 links
+    'average' -> stadium.average (exact, 100.0)
+    'age' -> singer.age (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'french' -> singer.country (fuzzy, 97.3)
+    'age' -> concert.year (fuzzy, 95.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(stadium.average) FROM singer
+[BASELINE] Generated: SELECT MAX(stadium.average) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'MIN', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'minimum', 'maximum', 'age', 'french', 'singer']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 53, Composite links: 2, Merged: 13
+  Found 13 links
+    'age' -> concert.year (fuzzy, 95.0)
+    'maximum' -> stadium.location (fuzzy, 90.0)
+    'average' -> concert.theme (fuzzy, 88.9)
+    'maximum' -> singer.age (fuzzy, 88.5)
+    'french' -> singer (fuzzy, 87.1)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(concert.year) FROM singer
+[ENHANCED] Generated: SELECT MAX(concert.year) FROM singer
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[7/50] Question: Show the name and the release year of the song by the youngest singer.
+DB: concert_singer
+Gold SQL: SELECT song_name ,  song_release_year FROM singer ORDER BY age LIMIT 1
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'LIMIT', 'ORDER_ASC'}
+  Content words: ['release', 'year', 'song', 'young', 'singer']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Found 60 links
+    'year' -> concert.year (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'young' -> singer (fuzzy, 96.1)
+    'release' -> stadium.location (fuzzy, 95.7)
+    'song' -> stadium.name (fuzzy, 95.3)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.name, singer.age, singer.country, singer.name, singer.song_release_year FROM singer WHERE concert.year = 'the release year' ORDER BY singer.name ASC NULLS LAST LIMIT 1
+[BASELINE] Generated: SELECT DISTINCT singer.name, singer.age, singer.country, singer.name, singer.song_release_year FROM singer WHERE concert.year = 'the release year' ORDER BY singer.name ASC NULLS LAST LIMIT 1
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'LIMIT', 'ORDER_ASC'}
+  Content words: ['release', 'year', 'song', 'young', 'singer']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Basic links: 60, Composite links: 1, Merged: 18
+  Found 18 links
+    'year' -> singer.age (fuzzy, 95.0)
+    'song' -> stadium.location (fuzzy, 92.5)
+    'year of the' -> concert.year (fuzzy, 90.0)
+    'young singer .' -> singer (fuzzy, 90.0)
+    'song' -> singer.song_name (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.song_name, singer.country, singer.name FROM singer WHERE stadium.location = 'the release year' ORDER BY singer.age ASC NULLS LAST LIMIT 1
+[ENHANCED] Generated: SELECT DISTINCT singer.age, singer.song_name, singer.country, singer.name FROM singer WHERE stadium.location = 'the release year' ORDER BY singer.age ASC NULLS LAST LIMIT 1
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[8/50] Question: What are the names and release years for all the songs of the youngest singer?
+DB: concert_singer
+Gold SQL: SELECT song_name ,  song_release_year FROM singer ORDER BY age LIMIT 1
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'ORDER_ASC', 'LIMIT', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['name', 'release', 'year', 'song', 'young', 'singer']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Found 88 links
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'year' -> concert.year (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'years' -> singer.age (fuzzy, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT singer.name, singer.age, singer.name, singer.age, singer.country FROM singer WHERE stadium.name = 'years' ORDER BY singer.name ASC NULLS LAST LIMIT 1
+[BASELINE] Generated: SELECT singer.name, singer.age, singer.name, singer.age, singer.country FROM singer WHERE stadium.name = 'years' ORDER BY singer.name ASC NULLS LAST LIMIT 1
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'ORDER_ASC', 'LIMIT', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['name', 'release', 'year', 'song', 'young', 'singer']
+  Question type: superlative
+
+[Task 3] Linking to schema...
+  Basic links: 88, Composite links: 4, Merged: 19
+  Found 19 links
+    'year' -> singer.age (fuzzy, 95.0)
+    'song' -> singer.song_name (fuzzy, 90.0)
+    'years' -> <value> (value, 90.0)
+    'name' -> singer (fuzzy, 88.0)
+    'year' -> singer.country (fuzzy, 87.1)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: True
+  LIMIT: 1
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT singer.age, singer.song_name, singer.country, singer.name, singer.is_male FROM singer WHERE singer.song_name = 'years' ORDER BY singer.age ASC NULLS LAST LIMIT 1
+[ENHANCED] Generated: SELECT singer.age, singer.song_name, singer.country, singer.name, singer.is_male FROM singer WHERE singer.song_name = 'years' ORDER BY singer.age ASC NULLS LAST LIMIT 1
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[9/50] Question: What are all distinct countries where singers above age 20 are from?
+DB: concert_singer
+Gold SQL: SELECT DISTINCT country FROM singer WHERE age  >  20
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_GT', 'DISTINCT', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['distinct', 'country', 'singer', 'age', '20']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 43 links
+    'age' -> singer.age (exact, 100.0)
+    'country' -> singer.country (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'singers' -> singer (fuzzy, 100.0)
+    '20' -> <value> (value, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.country, singer.country, singer.country, singer.age FROM singer WHERE singer.country > '20.0' AND singer.country > 'age 20'
+[BASELINE] Generated: SELECT DISTINCT singer.age, singer.country, singer.country, singer.country, singer.age FROM singer WHERE singer.country > '20.0' AND singer.country > 'age 20'
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_GT', 'DISTINCT', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['distinct', 'country', 'singer', 'age', '20']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 43, Composite links: 3, Merged: 13
+  Found 13 links
+    'country' -> stadium.location (fuzzy, 94.0)
+    'age 20 be' -> singer.age (fuzzy, 90.0)
+    'singer above age' -> singer (fuzzy, 90.0)
+    'age 20' -> <value> (value, 90.0)
+    'age' -> stadium.capacity (fuzzy, 88.5)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.name, singer.country FROM singer WHERE stadium.location > 'age 20'
+[ENHANCED] Generated: SELECT DISTINCT singer.age, singer.name, singer.country FROM singer WHERE stadium.location > 'age 20'
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[10/50] Question: What are  the different countries with singers above age 20?
+DB: concert_singer
+Gold SQL: SELECT DISTINCT country FROM singer WHERE age  >  20
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_GT', 'DISTINCT', 'WHERE_NEQ', 'WHERE_LIKE', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['different', 'country', 'singer', 'age', '20']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 44 links
+    'age' -> singer.age (exact, 100.0)
+    'country' -> singer.country (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'singers' -> singer (fuzzy, 100.0)
+    '20' -> <value> (value, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.country, singer.country, singer.country, singer.age FROM singer WHERE singer.country > '20.0' AND singer.country > 'age 20'
+[BASELINE] Generated: SELECT DISTINCT singer.age, singer.country, singer.country, singer.country, singer.age FROM singer WHERE singer.country > '20.0' AND singer.country > 'age 20'
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'WHERE_GT', 'DISTINCT', 'WHERE_NEQ', 'WHERE_LIKE', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['different', 'country', 'singer', 'age', '20']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 44, Composite links: 3, Merged: 14
+  Found 14 links
+    'country' -> stadium.location (fuzzy, 94.0)
+    'age 20 ?' -> singer.age (fuzzy, 90.0)
+    'singer above age' -> singer (fuzzy, 90.0)
+    'age 20' -> <value> (value, 90.0)
+    '  the' -> concert.theme (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT DISTINCT singer.age, singer.name, singer.country FROM singer WHERE stadium.location > 'age 20'
+[ENHANCED] Generated: SELECT DISTINCT singer.age, singer.name, singer.country FROM singer WHERE stadium.location > 'age 20'
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[11/50] Question: Show all countries and the number of singers in each country.
+DB: concert_singer
+Gold SQL: SELECT country ,  count(*) FROM singer GROUP BY country
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'SUM', 'GROUP_BY', 'COUNT'}
+  Content words: ['country', 'number', 'singer', 'country']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 56 links
+    'country' -> singer.country (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'singers' -> singer (fuzzy, 100.0)
+    'number' -> concert (fuzzy, 96.2)
+    'number' -> stadium.name (fuzzy, 95.7)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: False
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[BASELINE] Generated: SELECT COUNT(*) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'SUM', 'GROUP_BY', 'COUNT'}
+  Content words: ['country', 'number', 'singer', 'country']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 56, Composite links: 2, Merged: 18
+  Found 18 links
+    'number' -> concert (fuzzy, 96.2)
+    'number' -> stadium.average (fuzzy, 94.0)
+    'number' -> singer.age (fuzzy, 91.8)
+    'number' -> stadium (fuzzy, 90.0)
+    'singer' -> stadium.name (fuzzy, 88.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: False
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM concert
+[ENHANCED] Generated: SELECT COUNT(*) FROM concert
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[12/50] Question: How many singers are from each country?
+DB: concert_singer
+Gold SQL: SELECT country ,  count(*) FROM singer GROUP BY country
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'WHERE_EQ', 'COUNT', 'EXISTS'}
+  Content words: ['singer', 'country']
+  Question type: count
+
+[Task 3] Linking to schema...
+  Found 26 links
+    'singer' -> singer (exact, 100.0)
+    'country' -> singer.country (exact, 100.0)
+    'country' -> stadium.location (fuzzy, 94.0)
+    'country ?' -> singer.country (fuzzy, 93.3)
+    'how many singers' -> singer (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[BASELINE] Generated: SELECT COUNT(*) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'WHERE_EQ', 'COUNT', 'EXISTS'}
+  Content words: ['singer', 'country']
+  Question type: count
+
+[Task 3] Linking to schema...
+  Basic links: 26, Composite links: 1, Merged: 9
+  Found 9 links
+    'country' -> stadium.location (fuzzy, 94.0)
+    'each country ?' -> singer.country (fuzzy, 90.0)
+    'singer' -> stadium.name (fuzzy, 88.0)
+    'singer' -> singer.name (fuzzy, 88.0)
+    'country' -> concert.year (fuzzy, 87.1)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[ENHANCED] Generated: SELECT COUNT(*) FROM singer
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[13/50] Question: List all song names by singers above the average age.
+DB: concert_singer
+Gold SQL: SELECT song_name FROM singer WHERE age  >  (SELECT avg(age) FROM singer)
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'WHERE_GT', 'AVG', 'COUNT', 'QUANTIFIER_ALL'}
+  Content words: ['list', 'song', 'name', 'singer', 'average', 'age']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 85 links
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'average' -> stadium.average (exact, 100.0)
+    'age' -> singer.age (exact, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM singer
+[BASELINE] Generated: SELECT COUNT(*) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'WHERE_GT', 'AVG', 'COUNT', 'QUANTIFIER_ALL'}
+  Content words: ['list', 'song', 'name', 'singer', 'average', 'age']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 85, Composite links: 5, Merged: 17
+  Found 17 links
+    'average' -> concert.theme (fuzzy, 88.9)
+    'singer' -> stadium.name (fuzzy, 88.0)
+    'singer' -> singer.name (fuzzy, 88.0)
+    'average' -> stadium.capacity (fuzzy, 87.1)
+    'name' -> stadium.location (fuzzy, 86.7)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT COUNT(*) FROM concert
+[ENHANCED] Generated: SELECT COUNT(*) FROM concert
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[14/50] Question: What are all the song names by singers who are older than average?
+DB: concert_singer
+Gold SQL: SELECT song_name FROM singer WHERE age  >  (SELECT avg(age) FROM singer)
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'AVG', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['song', 'name', 'singer', 'old', 'average']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 72 links
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'singer' -> singer (exact, 100.0)
+    'average' -> stadium.average (exact, 100.0)
+    'song name' -> singer.song_name (exact, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT AVG(stadium.name) FROM singer
+[BASELINE] Generated: SELECT AVG(stadium.name) FROM singer
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'GROUP_BY', 'AVG', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['song', 'name', 'singer', 'old', 'average']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 72, Composite links: 4, Merged: 18
+  Found 18 links
+    'who' -> singer.country (fuzzy, 91.2)
+    'than average ?' -> stadium.average (fuzzy, 90.0)
+    'average' -> concert.theme (fuzzy, 88.9)
+    'singer' -> stadium.name (fuzzy, 88.0)
+    'singer' -> singer.name (fuzzy, 88.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: True
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT AVG(singer.country) FROM concert
+[ENHANCED] Generated: SELECT AVG(singer.country) FROM concert
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[15/50] Question: Show location and name for all stadiums with a capacity between 5000 and 10000.
+DB: concert_singer
+Gold SQL: SELECT LOCATION ,  name FROM stadium WHERE capacity BETWEEN 5000 AND 10000
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'WHERE_LIKE'}
+  Content words: ['location', 'stadium', 'capacity', '5000', '10000']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 52 links
+    'location' -> stadium.location (exact, 100.0)
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'stadium' -> stadium (exact, 100.0)
+    'capacity' -> stadium.capacity (exact, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT stadium.location, stadium.name, stadium.capacity, stadium.capacity, stadium.capacity FROM stadium WHERE stadium.location LIKE '5000.0' AND stadium.location LIKE '10000.0'
+[BASELINE] Generated: SELECT stadium.location, stadium.name, stadium.capacity, stadium.capacity, stadium.capacity FROM stadium WHERE stadium.location LIKE '5000.0' AND stadium.location LIKE '10000.0'
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'WHERE_LIKE'}
+  Content words: ['location', 'stadium', 'capacity', '5000', '10000']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 52, Composite links: 4, Merged: 19
+  Found 19 links
+    '10000' -> <value> (value, 100.0)
+    'location' -> singer.country (fuzzy, 94.0)
+    'capacity between 5000' -> stadium.capacity (fuzzy, 90.0)
+    'name' -> singer.song_name (fuzzy, 90.0)
+    'name' -> concert.concert_name (fuzzy, 90.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT singer.country, singer.song_name, singer.age, singer.name, singer.song_release_year FROM singer WHERE singer.country LIKE '10000.0'
+[ENHANCED] Generated: SELECT singer.country, singer.song_name, singer.age, singer.name, singer.song_release_year FROM singer WHERE singer.country LIKE '10000.0'
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[16/50] Question: What are the locations and names of all stations with capacity between 5000 and 10000?
+DB: concert_singer
+Gold SQL: SELECT LOCATION ,  name FROM stadium WHERE capacity BETWEEN 5000 AND 10000
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'WHERE_EQ', 'WHERE_LIKE', 'EXISTS'}
+  Content words: ['location', 'name', 'station', 'capacity', '5000', '10000']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 63 links
+    'capacity' -> stadium.capacity (exact, 100.0)
+    'location' -> stadium.location (exact, 100.0)
+    'name' -> stadium.name (exact, 100.0)
+    'name' -> singer.name (exact, 100.0)
+    'names' -> stadium.name (fuzzy, 100.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT stadium.capacity, stadium.location, stadium.name, stadium.name, stadium.location FROM stadium WHERE stadium.location LIKE '5000.0' AND stadium.location LIKE '10000.0'
+[BASELINE] Generated: SELECT stadium.capacity, stadium.location, stadium.name, stadium.name, stadium.location FROM stadium WHERE stadium.location LIKE '5000.0' AND stadium.location LIKE '10000.0'
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'QUANTIFIER_ALL', 'WHERE_EQ', 'WHERE_LIKE', 'EXISTS'}
+  Content words: ['location', 'name', 'station', 'capacity', '5000', '10000']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 63, Composite links: 6, Merged: 17
+  Found 17 links
+    '10000' -> <value> (value, 100.0)
+    'station' -> singer.country (fuzzy, 88.5)
+    'capacity' -> concert.theme (fuzzy, 88.5)
+    'capacity' -> singer.age (fuzzy, 88.5)
+    'name' -> singer (fuzzy, 88.0)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: False
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT singer.country, singer.age, singer.name, singer.song_name, singer.song_release_year FROM singer WHERE singer.country LIKE '10000.0'
+[ENHANCED] Generated: SELECT singer.country, singer.age, singer.name, singer.song_name, singer.song_release_year FROM singer WHERE singer.country LIKE '10000.0'
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[17/50] Question: What is the maximum capacity and the average of all stadiums ?
+DB: concert_singer
+Gold SQL: select max(capacity), average from stadium
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['maximum', 'capacity', 'average', 'stadium']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 42 links
+    'capacity' -> stadium.capacity (exact, 100.0)
+    'average' -> stadium.average (exact, 100.0)
+    'stadium' -> stadium (exact, 100.0)
+    'stadium ?' -> stadium (fuzzy, 93.3)
+    'maximum' -> stadium.capacity (fuzzy, 91.8)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(stadium.capacity) FROM stadium
+[BASELINE] Generated: SELECT MAX(stadium.capacity) FROM stadium
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['maximum', 'capacity', 'average', 'stadium']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 42, Composite links: 2, Merged: 10
+  Found 10 links
+    'capacity' -> singer.age (fuzzy, 88.5)
+    'maximum' -> singer.country (fuzzy, 87.1)
+    'stadium' -> stadium.location (fuzzy, 86.4)
+    'capacity' -> concert.year (fuzzy, 86.4)
+    'capacity and' -> stadium.capacity (fuzzy, 84.2)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(singer.age) FROM singer
+[ENHANCED] Generated: SELECT MAX(singer.age) FROM singer
+
+[RESULTS]
+  Baseline correct: False
+  Enhanced correct: False
+
+================================================================================
+[18/50] Question: What is the average and maximum capacities for all stadiums ?
+DB: concert_singer
+Gold SQL: select avg(capacity) ,  max(capacity) from stadium
+================================================================================
+
+[BASELINE] Running v0.4 (no Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'maximum', 'capacity', 'stadium']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Found 42 links
+    'average' -> stadium.average (exact, 100.0)
+    'capacity' -> stadium.capacity (exact, 100.0)
+    'stadium' -> stadium (exact, 100.0)
+    'stadium ?' -> stadium (fuzzy, 93.3)
+    'maximum' -> stadium.capacity (fuzzy, 91.8)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(stadium.average) FROM stadium
+[BASELINE] Generated: SELECT MAX(stadium.average) FROM stadium
+
+[ENHANCED] Running v0.5 (with Lambda DCS)...
+
+[Task 2] Analyzing question...
+  Signals: {'AVG', 'MAX', 'QUANTIFIER_ALL', 'WHERE_EQ', 'EXISTS'}
+  Content words: ['average', 'maximum', 'capacity', 'stadium']
+  Question type: select
+
+[Task 3] Linking to schema...
+  Basic links: 42, Composite links: 2, Merged: 10
+  Found 10 links
+    'capacity' -> singer.age (fuzzy, 88.5)
+    'capacity' -> concert.theme (fuzzy, 88.5)
+    'maximum' -> singer.country (fuzzy, 87.1)
+    'stadium' -> stadium.location (fuzzy, 86.4)
+    'capacity' -> concert.year (fuzzy, 86.4)
+
+[Task 4] Predicting SQL skeleton...
+  Aggregation: True
+  WHERE: True
+  GROUP BY: False
+  ORDER BY: False
+  LIMIT: None
+  [WARN] Lambda DCS failed: 'list' object has no attribute 'items'
+
+[Fallback] Slot filling (last resort)...
+  Generated SQL: SELECT MAX(singer.age) FROM singer

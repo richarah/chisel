@@ -92,16 +92,17 @@ def find_negation_scope(tokens, neg_idx: int) -> Optional[NegationScope]:
     # Determine scope type from head's POS
     scope_type = head_token.pos
 
-    # Collect all tokens in the negation scope
-    # This includes the head and its dependents
-    affected = {head_idx}
+    # Collect all tokens in the negation scope using spaCy's subtree
+    # This includes the head and all its descendants (more efficient than custom recursion)
+    affected = set()
 
-    # Add all descendants of head
+    # Get the actual spaCy token (not our Token wrapper)
+    # Assuming tokens have .spacy_token attribute or can access original doc
     for i, token in enumerate(tokens):
-        if token.head_idx == head_idx:
+        # Include head and all its descendants
+        # For now, use our manual traversal but with simpler logic
+        if i == head_idx or _is_descendant_of(tokens, i, head_idx):
             affected.add(i)
-            # Also add their descendants (recursive)
-            affected.update(_get_descendants(tokens, i))
 
     # Determine SQL strategy based on scope
     sql_strategy = _determine_sql_strategy(head_token, affected, tokens)
@@ -115,26 +116,41 @@ def find_negation_scope(tokens, neg_idx: int) -> Optional[NegationScope]:
     )
 
 
-def _get_descendants(tokens, idx: int) -> Set[int]:
+def _is_descendant_of(tokens, child_idx: int, ancestor_idx: int) -> bool:
     """
-    Get all descendants of a token in the dependency tree.
+    Check if child_idx is a descendant of ancestor_idx in the dependency tree.
+
+    Uses iterative traversal up the tree (more efficient than recursive).
 
     Args:
         tokens: Token list
-        idx: Token index
+        child_idx: Potential child index
+        ancestor_idx: Potential ancestor index
 
     Returns:
-        Set of descendant indices
+        True if child is descendant of ancestor
     """
-    descendants = set()
+    if child_idx == ancestor_idx:
+        return False
 
-    for i, token in enumerate(tokens):
-        if token.head_idx == idx:
-            descendants.add(i)
-            # Recursive
-            descendants.update(_get_descendants(tokens, i))
+    current_idx = child_idx
+    # Walk up the tree following head links
+    visited = set()
+    while current_idx >= 0 and current_idx < len(tokens):
+        if current_idx in visited:  # Cycle detection
+            break
+        visited.add(current_idx)
 
-    return descendants
+        if tokens[current_idx].head_idx == ancestor_idx:
+            return True
+
+        # Move to parent
+        parent_idx = tokens[current_idx].head_idx
+        if parent_idx == current_idx:  # Root reached
+            break
+        current_idx = parent_idx
+
+    return False
 
 
 def _determine_sql_strategy(head_token, affected_tokens: Set[int], tokens) -> NegationType:

@@ -1,0 +1,47 @@
+[
+  {
+    "question": "How many singers do we have?",
+    "db_id": "concert_singer",
+    "gold": "SELECT count(*) FROM singer",
+    "predicted": "SELECT count(*) FROM singer",
+    "correct": true,
+    "valid": true,
+    "difficulty": "unknown"
+  },
+  {
+    "question": "What is the total number of singers?",
+    "db_id": "concert_singer",
+    "gold": "SELECT count(*) FROM singer",
+    "predicted": "SELECT count(*) FROM singer",
+    "correct": true,
+    "valid": true,
+    "difficulty": "unknown"
+  },
+  {
+    "question": "Show name, country, age for all singers ordered by age from the oldest to the youngest.",
+    "db_id": "concert_singer",
+    "gold": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "predicted": "SELECT name, country, age FROM singer ORDER BY age DESC",
+    "correct": false,
+    "valid": true,
+    "difficulty": "unknown"
+  },
+  {
+    "question": "What are the names, countries, and ages for every singer in descending order of age?",
+    "db_id": "concert_singer",
+    "gold": "SELECT name ,  country ,  age FROM singer ORDER BY age DESC",
+    "predicted": "SELECT * FROM singer",
+    "correct": false,
+    "valid": true,
+    "difficulty": "unknown"
+  },
+  {
+    "question": "What is the average, minimum, and maximum age of all singers from France?",
+    "db_id": "concert_singer",
+    "gold": "SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'",
+    "predicted": "SELECT * FROM singer",
+    "correct": false,
+    "valid": true,
+    "difficulty": "unknown"
+  }
+]

@@ -34,31 +34,37 @@ def sample_schema():
     - department(id, name, budget)
     - professor(id, name, dept_id, salary)
     """
-    schema = SchemaGraph(
-        db_id="university",
-        tables=["student", "course", "enrollment", "department", "professor"],
-        columns={
-            "student": ["id", "name", "age", "gpa", "dept_id"],
-            "course": ["id", "title", "credits", "dept_id"],
-            "enrollment": ["student_id", "course_id", "grade", "semester"],
-            "department": ["id", "name", "budget"],
-            "professor": ["id", "name", "dept_id", "salary"],
-        },
-        primary_keys={
-            "student": "id",
-            "course": "id",
-            "enrollment": None,
-            "department": "id",
-            "professor": "id",
-        },
-        foreign_keys=[
-            ("student", "dept_id", "department", "id"),
-            ("course", "dept_id", "department", "id"),
-            ("enrollment", "student_id", "student", "id"),
-            ("enrollment", "course_id", "course", "id"),
-            ("professor", "dept_id", "department", "id"),
+    # Create schema using Spider JSON format
+    spider_db = {
+        "db_id": "university",
+        "table_names_original": ["student", "course", "enrollment", "department", "professor"],
+        "column_names_original": [
+            [-1, "*"],  # Special * column
+            [0, "id"], [0, "name"], [0, "age"], [0, "gpa"], [0, "dept_id"],
+            [1, "id"], [1, "title"], [1, "credits"], [1, "dept_id"],
+            [2, "student_id"], [2, "course_id"], [2, "grade"], [2, "semester"],
+            [3, "id"], [3, "name"], [3, "budget"],
+            [4, "id"], [4, "name"], [4, "dept_id"], [4, "salary"],
         ],
-    )
+        "column_types": [
+            "text",  # *
+            "number", "text", "number", "number", "number",  # student
+            "number", "text", "number", "number",  # course
+            "number", "number", "text", "number",  # enrollment
+            "number", "text", "number",  # department
+            "number", "text", "number", "number",  # professor
+        ],
+        "primary_keys": [1, 6, 14, 17],  # student.id, course.id, department.id, professor.id
+        "foreign_keys": [
+            [5, 14],   # student.dept_id -> department.id
+            [9, 14],   # course.dept_id -> department.id
+            [10, 1],   # enrollment.student_id -> student.id
+            [11, 6],   # enrollment.course_id -> course.id
+            [19, 14],  # professor.dept_id -> department.id
+        ],
+    }
+
+    schema = SchemaGraph.from_spider_json(spider_db)
     return schema
 
 
