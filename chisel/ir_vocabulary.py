@@ -1,26 +1,36 @@
 """
-SQL Lambda Vocabulary
+SQL DRT Vocabulary
 
-SQL-specific typed lambda calculus primitives built on nltk.sem.logic.
-These are the atomic building blocks for compositional SQL semantics.
+SQL-specific Discourse Representation Theory primitives built on nltk.sem.drt.
+Upgraded from bare lambda calculus to DRT for proper negation/quantifier scope.
 
-Design: Each SQL operation is a typed constant or combinator that can be
-composed using lambda abstraction and application.
+Key Changes from ir_vocabulary.py:
+- Uses DRS (Discourse Representation Structures) instead of Expression
+- Discourse referents explicitly introduced in DRS boxes
+- Negation creates nested DRS boxes with explicit scope
+- Quantifiers use DRT duplex conditions (implication)
+- .fol() method converts DRS to FOL for SQL compilation
+
+The SQL semantics are identical - we just wrap in DRT structure for better
+handling of negation scope, quantifiers, and discourse referents.
 """
 
 from typing import Dict, List, Optional
-from nltk.sem.logic import (
-    Expression, ApplicationExpression, LambdaExpression,
-    Variable, ConstantExpression, AndExpression, OrExpression,
-    NegatedExpression, EqualityExpression
+from nltk.sem.drt import (
+    DRS, DrtExpression, DrtParser,
+    DrtLambdaExpression, DrtApplicationExpression,
+    DrtIndividualVariableExpression,
+    DrtNegatedExpression, DrtConcatenation,
+    DrtConstantExpression, DrtTokens
 )
+from nltk.sem.logic import Variable
 from nltk.sem import logic
 from dataclasses import dataclass
 from enum import Enum
 
 
 # ==========================
-# TYPE SYSTEM
+# TYPE SYSTEM (unchanged)
 # ==========================
 
 class SQLType(Enum):
@@ -37,153 +47,146 @@ class SQLType(Enum):
 
 @dataclass
 class TypedExpression:
-    """Lambda expression with SQL type annotation."""
-    expr: Expression
+    """DRT expression with SQL type annotation."""
+    expr: DrtExpression
     sql_type: SQLType
+
+
+# ==========================
+# DRT PARSER
+# ==========================
+
+_parser = DrtParser()
+
+
+def parse_drs(drs_string: str) -> DRS:
+    """Parse DRS from string."""
+    return _parser.parse(drs_string)
 
 
 # ==========================
 # AGGREGATION OPERATORS
 # ==========================
 
-def count(set_pred: Expression) -> Expression:
+def count(set_pred: DrtExpression) -> DrtExpression:
     """
     COUNT aggregation: count(λx.P(x)) → number
 
-    Example: count(λx.student(x)) = SELECT COUNT(*) FROM student
+    Example: count(λx.([],[student(x)]))
+            = SELECT COUNT(*) FROM student
+
+    The DRS introduces discourse referent x for the counted entities.
     """
-    return ApplicationExpression(
-        ConstantExpression(Variable('COUNT')),
+    return DrtApplicationExpression(
+        DrtConstantExpression(Variable('COUNT')),
         set_pred
     )
 
 
-def argmax(set_pred: Expression, measure_fn: Expression) -> Expression:
+def argmax(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
     """
     ARGMAX (superlative): argmax(λx.P(x), λx.f(x)) → entity
 
-    Example: argmax(λx.student(x), λx.age(x))
+    Example: argmax(λx.([],[student(x)]), λx.([],[age(x)]))
             = SELECT * FROM student ORDER BY age DESC LIMIT 1
     """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('ARGMAX')),
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('ARGMAX')),
             set_pred
         ),
         measure_fn
     )
 
 
-def order_by_desc(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """
-    ORDER BY DESC (all rows): order_by_desc(λx.P(x), λx.f(x)) → set
-
-    Example: order_by_desc(λx.student(x), λx.age(x))
-            = SELECT * FROM student ORDER BY age DESC
-    """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('ORDER_DESC')),
+def order_by_desc(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """ORDER BY DESC (all rows): SELECT * FROM ... ORDER BY ... DESC"""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('ORDER_DESC')),
             set_pred
         ),
         measure_fn
     )
 
 
-def order_by_asc(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """
-    ORDER BY ASC (all rows): order_by_asc(λx.P(x), λx.f(x)) → set
-
-    Example: order_by_asc(λx.student(x), λx.age(x))
-            = SELECT * FROM student ORDER BY age ASC
-    """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('ORDER_ASC')),
+def order_by_asc(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """ORDER BY ASC (all rows): SELECT * FROM ... ORDER BY ... ASC"""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('ORDER_ASC')),
             set_pred
         ),
         measure_fn
     )
 
 
-def project(set_expr: Expression, columns: List[str]) -> Expression:
+def project(set_expr: DrtExpression, columns: List[str]) -> DrtExpression:
     """
-    PROJECT (column selection): project(expr, [col1, col2]) → expr with projected columns
+    PROJECT (column selection): SELECT col1, col2 FROM ...
 
-    Example: project(λx.student(x), ['name', 'age'])
+    Example: project(λx.([],[student(x)]), ['name', 'age'])
             = SELECT name, age FROM student
-
-    The columns list is encoded as a comma-separated COLUMNS constant for the compiler.
     """
     columns_str = ','.join(columns)
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('PROJECT')),
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('PROJECT')),
             set_expr
         ),
-        ConstantExpression(Variable(f'COLUMNS_{columns_str}'))
+        DrtConstantExpression(Variable(f'COLUMNS_{columns_str}'))
     )
 
 
-def argmin(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """
-    ARGMIN (superlative): argmin(λx.P(x), λx.f(x)) → entity
-
-    Example: argmin(λx.student(x), λx.age(x))
-            = SELECT * FROM student ORDER BY age ASC LIMIT 1
-    """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('ARGMIN')),
+def argmin(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """ARGMIN (superlative): SELECT * FROM ... ORDER BY ... ASC LIMIT 1"""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('ARGMIN')),
             set_pred
         ),
         measure_fn
     )
 
 
-def avg(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """
-    AVG aggregation: avg(λx.P(x), λx.f(x)) → number
-
-    Example: avg(λx.student(x), λx.gpa(x))
-            = SELECT AVG(gpa) FROM student
-    """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('AVG')),
+def avg(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """AVG aggregation: SELECT AVG(...) FROM ..."""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('AVG')),
             set_pred
         ),
         measure_fn
     )
 
 
-def sum_(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """SUM aggregation."""
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('SUM')),
+def sum_(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """SUM aggregation: SELECT SUM(...) FROM ..."""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('SUM')),
             set_pred
         ),
         measure_fn
     )
 
 
-def min_(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """MIN aggregation."""
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('MIN')),
+def min_(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """MIN aggregation: SELECT MIN(...) FROM ..."""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('MIN')),
             set_pred
         ),
         measure_fn
     )
 
 
-def max_(set_pred: Expression, measure_fn: Expression) -> Expression:
-    """MAX aggregation."""
-    return ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('MAX')),
+def max_(set_pred: DrtExpression, measure_fn: DrtExpression) -> DrtExpression:
+    """MAX aggregation: SELECT MAX(...) FROM ..."""
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtConstantExpression(Variable('MAX')),
             set_pred
         ),
         measure_fn
@@ -194,144 +197,183 @@ def max_(set_pred: Expression, measure_fn: Expression) -> Expression:
 # SET OPERATIONS
 # ==========================
 
-def filter_(set_pred1: Expression, set_pred2: Expression) -> Expression:
+def filter_(set_pred1: DrtExpression, set_pred2: DrtExpression) -> DrtExpression:
     """
-    SET INTERSECTION: filter(P, Q) = λx.(P(x) ∧ Q(x))
+    SET INTERSECTION: filter(P, Q) = λx.DRS([],[P(x), Q(x)])
 
-    Example: filter(λx.student(x), λx.gt(age(x), 20))
+    Example: filter(λx.([],[student(x)]), λx.([],[gt(age(x), 20)]))
             = SELECT * FROM student WHERE age > 20
+
+    The DRS concatenates both predicates in the same box - conjunction.
     """
-    x = Variable('x')
-    return LambdaExpression(x, AndExpression(
-        ApplicationExpression(set_pred1, x),
-        ApplicationExpression(set_pred2, x)
-    ))
+    x = DrtIndividualVariableExpression(Variable('x'))
+    # Apply both predicates to x and concatenate their DRS boxes
+    # This creates: λx.DRS([],[student(x) & age(x) > 20])
+    return DrtLambdaExpression(
+        x.variable,
+        DrtConcatenation(
+            DrtApplicationExpression(set_pred1, x),
+            DrtApplicationExpression(set_pred2, x)
+        )
+    )
 
 
-def union_(set_pred1: Expression, set_pred2: Expression) -> Expression:
-    """SET UNION: λx.(P(x) ∨ Q(x))"""
-    x = Variable('x')
-    return LambdaExpression(x, OrExpression(
-        ApplicationExpression(set_pred1, x),
-        ApplicationExpression(set_pred2, x)
-    ))
+def union_(set_pred1: DrtExpression, set_pred2: DrtExpression) -> DrtExpression:
+    """
+    SET UNION: λx.(P(x) ∨ Q(x))
+
+    In DRT: λx.DRS([],[P(x) | Q(x)])
+    The disjunction is within the DRS box.
+    """
+    x = DrtIndividualVariableExpression(Variable('x'))
+    from nltk.sem.drt import DrtOrExpression
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtOrExpression(
+            DrtApplicationExpression(set_pred1, x),
+            DrtApplicationExpression(set_pred2, x)
+        )])
+    )
 
 
-def intersect_(set_pred1: Expression, set_pred2: Expression) -> Expression:
+def intersect_(set_pred1: DrtExpression, set_pred2: DrtExpression) -> DrtExpression:
     """SET INTERSECTION (same as filter_)."""
     return filter_(set_pred1, set_pred2)
 
 
-def except_(set_pred1: Expression, set_pred2: Expression) -> Expression:
-    """SET DIFFERENCE: λx.(P(x) ∧ ¬Q(x))"""
-    x = Variable('x')
-    return LambdaExpression(x, AndExpression(
-        ApplicationExpression(set_pred1, x),
-        NegatedExpression(ApplicationExpression(set_pred2, x))
-    ))
+def except_(set_pred1: DrtExpression, set_pred2: DrtExpression) -> DrtExpression:
+    """
+    SET DIFFERENCE: λx.DRS([],[P(x), NOT(Q(x))])
+
+    Negation creates a nested DRS box with explicit scope.
+    This is clearer than bare lambda negation.
+    """
+    x = DrtIndividualVariableExpression(Variable('x'))
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [
+            DrtApplicationExpression(set_pred1, x),
+            DrtNegatedExpression(DrtApplicationExpression(set_pred2, x))
+        ])
+    )
 
 
 # ==========================
 # COMPARISON OPERATORS
 # ==========================
 
-def gt(prop_fn: Expression, value: Expression) -> Expression:
-    """
-    GREATER THAN: λx.(f(x) > v)
-
-    Example: gt(age, 20) = λx.(age(x) > 20)
-    """
-    x = Variable('x')
-    # Represent as application for pattern matching
-    return LambdaExpression(x, ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('GT')),
-            ApplicationExpression(prop_fn, x)
-        ),
-        value
-    ))
-
-
-def lt(prop_fn: Expression, value: Expression) -> Expression:
-    """LESS THAN: λx.(f(x) < v)"""
-    x = Variable('x')
-    return LambdaExpression(x, ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('LT')),
-            ApplicationExpression(prop_fn, x)
-        ),
-        value
-    ))
-
-
-def gte(prop_fn: Expression, value: Expression) -> Expression:
-    """GREATER THAN OR EQUAL: λx.(f(x) >= v)"""
-    x = Variable('x')
-    return LambdaExpression(x, ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('GTE')),
-            ApplicationExpression(prop_fn, x)
-        ),
-        value
-    ))
-
-
-def lte(prop_fn: Expression, value: Expression) -> Expression:
-    """LESS THAN OR EQUAL: λx.(f(x) <= v)"""
-    x = Variable('x')
-    return LambdaExpression(x, ApplicationExpression(
-        ApplicationExpression(
-            ConstantExpression(Variable('LTE')),
-            ApplicationExpression(prop_fn, x)
-        ),
-        value
-    ))
-
-
-def eq(prop_fn: Expression, value: Expression) -> Expression:
-    """
-    EQUALITY: λx.(f(x) = v)
-
-    Example: eq(name, 'John') = λx.(name(x) = 'John')
-    """
-    x = Variable('x')
-    return LambdaExpression(x, EqualityExpression(
-        ApplicationExpression(prop_fn, x),
-        value
-    ))
-
-
-def neq(prop_fn: Expression, value: Expression) -> Expression:
-    """NOT EQUAL: λx.(f(x) ≠ v)"""
-    x = Variable('x')
-    return LambdaExpression(x, NegatedExpression(
-        EqualityExpression(
-            ApplicationExpression(prop_fn, x),
+def gt(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """GREATER THAN: λx.DRS([],[f(x) > v])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtApplicationExpression(
+            DrtApplicationExpression(
+                DrtConstantExpression(Variable('GT')),
+                DrtApplicationExpression(prop_fn, x)
+            ),
             value
-        )
-    ))
+        )])
+    )
+
+
+def lt(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """LESS THAN: λx.DRS([],[f(x) < v])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtApplicationExpression(
+            DrtApplicationExpression(
+                DrtConstantExpression(Variable('LT')),
+                DrtApplicationExpression(prop_fn, x)
+            ),
+            value
+        )])
+    )
+
+
+def gte(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """GREATER THAN OR EQUAL: λx.DRS([],[f(x) >= v])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtApplicationExpression(
+            DrtApplicationExpression(
+                DrtConstantExpression(Variable('GTE')),
+                DrtApplicationExpression(prop_fn, x)
+            ),
+            value
+        )])
+    )
+
+
+def lte(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """LESS THAN OR EQUAL: λx.DRS([],[f(x) <= v])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtApplicationExpression(
+            DrtApplicationExpression(
+                DrtConstantExpression(Variable('LTE')),
+                DrtApplicationExpression(prop_fn, x)
+            ),
+            value
+        )])
+    )
+
+
+def eq(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """EQUALITY: λx.DRS([],[f(x) = v])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    from nltk.sem.drt import DrtEqualityExpression
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtEqualityExpression(
+            DrtApplicationExpression(prop_fn, x),
+            value
+        )])
+    )
+
+
+def neq(prop_fn: DrtExpression, value: DrtExpression) -> DrtExpression:
+    """NOT EQUAL: λx.DRS([],[NOT(f(x) = v)])"""
+    x = DrtIndividualVariableExpression(Variable('x'))
+    from nltk.sem.drt import DrtEqualityExpression
+    return DrtLambdaExpression(
+        x.variable,
+        DRS([], [DrtNegatedExpression(DrtEqualityExpression(
+            DrtApplicationExpression(prop_fn, x),
+            value
+        ))])
+    )
 
 
 # ==========================
 # QUANTIFIERS & EXISTS
 # ==========================
 
-def exists(set_pred: Expression) -> Expression:
+def exists(set_pred: DrtExpression) -> DrtExpression:
     """
     EXISTS quantifier: EXISTS(λx.P(x))
 
-    Compiles to: WHERE EXISTS (SELECT * FROM ... WHERE P)
+    In DRT, this is already handled by discourse referents in DRS boxes.
+    We wrap in EXISTS constant for SQL compilation.
     """
-    return ApplicationExpression(
-        ConstantExpression(Variable('EXISTS')),
+    return DrtApplicationExpression(
+        DrtConstantExpression(Variable('EXISTS')),
         set_pred
     )
 
 
-def not_exists(set_pred: Expression) -> Expression:
-    """NOT EXISTS quantifier."""
-    return ApplicationExpression(
-        ConstantExpression(Variable('NOT_EXISTS')),
+def not_exists(set_pred: DrtExpression) -> DrtExpression:
+    """
+    NOT EXISTS quantifier.
+
+    In DRT: NOT(EXISTS(P)) = NOT(DRS([x],[P(x)]))
+    The negation creates a nested DRS box with explicit scope.
+    """
+    return DrtApplicationExpression(
+        DrtConstantExpression(Variable('NOT_EXISTS')),
         set_pred
     )
 
@@ -340,18 +382,17 @@ def not_exists(set_pred: Expression) -> Expression:
 # GROUP BY
 # ==========================
 
-def group_by(set_pred: Expression, grouping_fn: Expression, agg_fn: Expression) -> Expression:
+def group_by(set_pred: DrtExpression, grouping_fn: DrtExpression, agg_fn: DrtExpression) -> DrtExpression:
     """
     GROUP BY with aggregation:
     group_by(λx.P(x), λx.f(x), λs.count(s))
 
-    Example: group_by(λx.student(x), λx.dept(x), λs.count(s))
-            = SELECT dept, COUNT(*) FROM student GROUP BY dept
+    Example: SELECT dept, COUNT(*) FROM student GROUP BY dept
     """
-    return ApplicationExpression(
-        ApplicationExpression(
-            ApplicationExpression(
-                ConstantExpression(Variable('GROUP_BY')),
+    return DrtApplicationExpression(
+        DrtApplicationExpression(
+            DrtApplicationExpression(
+                DrtConstantExpression(Variable('GROUP_BY')),
                 set_pred
             ),
             grouping_fn
@@ -364,108 +405,98 @@ def group_by(set_pred: Expression, grouping_fn: Expression, agg_fn: Expression) 
 # SCHEMA ATOMS
 # ==========================
 
-def table_atom(table_name: str) -> Expression:
+def table_atom(table_name: str) -> DrtExpression:
     """
-    Table as set predicate: λx.table_name(x)
+    Table as set predicate: λx.DRS([],[table_name(x)])
 
-    Example: table_atom('student') = λx.student(x)
+    Example: table_atom('student') = λx.DRS([],[student(x)])
+
+    The DRS introduces discourse referent x for table rows.
     """
-    return Expression.fromstring(f'\\x.{table_name}(x)')
+    return parse_drs(f'\\x.([],[{table_name}(x)])')
 
 
-def column_atom(table_name: str, column_name: str) -> Expression:
+def column_atom(table_name: str, column_name: str) -> DrtExpression:
     """
-    Column as property function: λx.table_name_column_name(x)
+    Column as property function: λx.DRS([],[table_column(x)])
 
-    Example: column_atom('student', 'age') = λx.student_age(x)
+    Example: column_atom('student', 'age') = λx.DRS([],[student_age(x)])
     """
-    # Use table.column format for uniqueness
     atom_name = f"{table_name}_{column_name}"
-    return Expression.fromstring(f'\\x.{atom_name}(x)')
+    return parse_drs(f'\\x.([],[{atom_name}(x)])')
 
 
-def constant_atom(value: str, sql_type: SQLType = SQLType.STRING) -> Expression:
+def constant_atom(value: str, sql_type: SQLType = SQLType.STRING) -> DrtExpression:
     """
-    Constant value as expression.
+    Constant value as DRT expression.
 
     Example: constant_atom('John') = 'John'
     """
     if sql_type == SQLType.NUMBER:
-        return ConstantExpression(Variable(str(value)))
+        return DrtConstantExpression(Variable(str(value)))
     else:
-        # String constants need proper escaping
-        return ConstantExpression(Variable(f"'{value}'"))
+        return DrtConstantExpression(Variable(f"'{value}'"))
 
 
 # ==========================
 # UTILITIES
 # ==========================
 
-def is_aggregation(expr: Expression) -> bool:
+def is_aggregation(expr: DrtExpression) -> bool:
     """Check if expression contains aggregation operators."""
     expr_str = str(expr)
     agg_ops = ['COUNT', 'AVG', 'SUM', 'MIN', 'MAX', 'ARGMAX', 'ARGMIN']
     return any(op in expr_str for op in agg_ops)
 
 
-def is_superlative(expr: Expression) -> bool:
+def is_superlative(expr: DrtExpression) -> bool:
     """Check if expression is a superlative (ARGMAX/ARGMIN)."""
     expr_str = str(expr)
     return 'ARGMAX' in expr_str or 'ARGMIN' in expr_str
 
 
-def extract_table_refs(expr: Expression) -> List[str]:
+def extract_table_refs(expr: DrtExpression) -> List[str]:
     """
-    Extract table names referenced in expression.
+    Extract table names referenced in DRT expression.
 
-    Used for join inference.
+    Used for join inference. Works by converting to FOL first.
     """
-    expr_str = str(expr)
-    # Simple heuristic: look for predicates like student(x), student_age(x)
+    # Convert DRS to FOL for easier pattern matching
+    if hasattr(expr, 'fol'):
+        fol_expr = expr.fol()
+        expr_str = str(fol_expr)
+    else:
+        expr_str = str(expr)
+
     import re
-    # Match lowercase identifiers followed by (
     pattern = r'\b([a-z_]+)\('
     matches = re.findall(pattern, expr_str)
-    # Filter out logical operators
+
     logical_ops = {'and', 'or', 'not', 'exists', 'all', 'count', 'avg', 'sum', 'min', 'max',
                    'argmax', 'argmin', 'gt', 'lt', 'gte', 'lte', 'eq', 'group_by'}
 
     table_names = set()
     for m in matches:
         if m not in logical_ops:
-            # If has underscore (table_column), extract table part
             if '_' in m:
                 table_names.add(m.split('_')[0])
             else:
-                # Otherwise it's a table name directly
                 table_names.add(m)
 
     return list(table_names)
 
 
-def get_expression_type(expr: Expression) -> Optional[SQLType]:
-    """
-    Infer SQL type of expression.
-
-    Used for type checking during composition.
-    """
+def get_expression_type(expr: DrtExpression) -> Optional[SQLType]:
+    """Infer SQL type of DRT expression."""
     expr_str = str(expr)
 
-    # Aggregations return numbers
     if any(op in expr_str for op in ['COUNT', 'AVG', 'SUM', 'MIN', 'MAX']):
         return SQLType.NUMBER
 
-    # Superlatives return entities
     if any(op in expr_str for op in ['ARGMAX', 'ARGMIN']):
         return SQLType.ENTITY
 
-    # Lambda expressions with single variable are predicates (sets)
-    if isinstance(expr, LambdaExpression):
-        # Check body for boolean operators
-        body_str = str(expr.term)
-        if any(op in body_str for op in ['&', '|', '=', 'GT', 'LT']):
-            return SQLType.SET_E
+    if isinstance(expr, DrtLambdaExpression):
         return SQLType.SET_E
 
-    # Default
     return None
