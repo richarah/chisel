@@ -54,23 +54,27 @@ class SchemaLink:
     value: Optional[str] = None   # The actual value (if is_value=True)
 
 
-def generate_ngrams(tokens: List[str], max_n: int = 3) -> List[Tuple[str, Tuple[int, int]]]:
+def generate_ngrams_with_spans(doc, max_n: int = 3) -> List[Tuple[str, Tuple[int, int]]]:
     """
-    Generate n-grams from tokens (n=1 to max_n).
+    Generate n-grams from spaCy Doc with span information.
+
+    Uses spaCy's span functionality which is more efficient and respects
+    token boundaries properly.
+
+    Args:
+        doc: spaCy Doc object
+        max_n: Maximum n-gram size
 
     Returns: [(ngram_text, (start_idx, end_idx)), ...]
-
-    Example: ["student", "name", "list"] ->
-        [("student", (0,1)), ("name", (1,2)), ("list", (2,3)),
-         ("student name", (0,2)), ("name list", (1,3)),
-         ("student name list", (0,3))]
     """
     ngrams = []
 
-    for n in range(1, min(max_n + 1, len(tokens) + 1)):
-        for i in range(len(tokens) - n + 1):
-            ngram_text = " ".join(tokens[i:i+n])
-            ngrams.append((ngram_text, (i, i+n)))
+    for n in range(1, min(max_n + 1, len(doc) + 1)):
+        for i in range(len(doc) - n + 1):
+            span = doc[i:i+n]
+            # Use lemmatized text for better matching
+            ngram_text = " ".join([t.lemma_ for t in span])
+            ngrams.append((ngram_text, (span.start, span.end)))
 
     return ngrams
 
@@ -152,11 +156,15 @@ def link_question_to_schema(
             if token.singular_form and token.singular_form != token.lemma:
                 phrases_to_match.append((token.singular_form, (token.idx, token.idx + 1), "singular"))
 
-    # Fallback: also generate n-grams for coverage
-    content_tokens = [t.lemma for t in question_analysis.tokens if not t.is_stop]
-    ngrams = generate_ngrams(content_tokens, max_n=3)
+    # Fallback: also generate n-grams for coverage using spaCy spans
+    # Filter to content words only
+    content_doc = question_analysis.doc  # Full spaCy doc
+    ngrams = generate_ngrams_with_spans(content_doc, max_n=3)
     for ngram, span in ngrams:
-        phrases_to_match.append((ngram, span, "ngram"))
+        # Only add if not stopwords
+        tokens_in_span = content_doc[span[0]:span[1]]
+        if any(not t.is_stop for t in tokens_in_span):
+            phrases_to_match.append((ngram, span, "ngram"))
 
     # ==========================
     # STRATEGY 1: EXACT MATCH
@@ -408,6 +416,39 @@ def get_tables_from_links(links: List[SchemaLink]) -> Set[str]:
         if link.table_name:
             tables.add(link.table_name)
     return tables
+
+
+def merge_schema_links(basic: List[SchemaLink], composite: List[SchemaLink]) -> List[SchemaLink]:
+    """
+    Merge two link sets, prioritizing composite scores over basic scores.
+
+    Args:
+        basic: Links from basic schema linking (exact/fuzzy/synonym matching)
+        composite: Links from COMA++ composite matching (weighted aggregation)
+
+    Returns:
+        Merged list of unique links with highest scores
+    """
+    merged = {}
+
+    # Add basic links first - keep highest scoring link per (table, column) key
+    for link in basic:
+        # Key by (table, column) or just table for table links
+        key = (link.table_name, link.column_name) if link.column_name else link.table_name
+        if key not in merged or link.score > merged[key].score:
+            merged[key] = link
+
+    # Override with composite (higher scores from composite matching)
+    for link in composite:
+        key = (link.table_name, link.column_name) if link.column_name else link.table_name
+        if key not in merged or link.score > merged[key].score:
+            merged[key] = link
+
+    # Convert back to list and sort by score
+    result = list(merged.values())
+    result.sort(key=lambda x: x.score, reverse=True)
+
+    return result
 
 
 if __name__ == "__main__":

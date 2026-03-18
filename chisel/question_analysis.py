@@ -214,6 +214,7 @@ class QuestionAnalysis:
     We do: map parsed info -> SQL signals using expanded indicators
     """
     original_text: str
+    doc: Optional[Doc] = None  # Full spaCy Doc object for advanced processing
     tokens: List[Token] = field(default_factory=list)
     entities: List[Entity] = field(default_factory=list)
     sql_signals: Set[str] = field(default_factory=set)
@@ -246,6 +247,7 @@ class QuestionAnalysis:
 
         # Parse with spaCy (does all the heavy lifting)
         doc = nlp(question)
+        analysis.doc = doc  # Store doc for advanced processing
 
         # Extract tokens (spaCy does tokenization, lemmatization, POS, dependencies)
         for idx, token in enumerate(doc):
@@ -366,10 +368,22 @@ class QuestionAnalysis:
             analysis.question_type = "yes_no"
 
         if analysis.superlatives:
-            analysis.question_type = "superlative"
-            # Superlatives usually mean ORDER BY + LIMIT
-            analysis.sql_signals.add("ORDER_DESC" if "most" in question_lower or "biggest" in question_lower else "ORDER_ASC")
-            analysis.sql_signals.add("LIMIT")
+            # Check if this is ORDER BY all vs superlative (LIMIT 1)
+            # If "all" or "every" appears, it's ORDER BY without LIMIT
+            has_quantifier_all = "QUANTIFIER_ALL" in analysis.sql_signals or \
+                                  any(word in question_lower for word in ["for all", "all of", "every"])
+
+            if has_quantifier_all:
+                # ORDER BY all rows, not superlative
+                analysis.question_type = "order_by"
+                analysis.sql_signals.add("ORDER_DESC" if "most" in question_lower or "biggest" in question_lower or "oldest" in question_lower else "ORDER_ASC")
+                # Do NOT add LIMIT - we want all rows
+            else:
+                # True superlative - find the one with max/min value
+                analysis.question_type = "superlative"
+                # Superlatives usually mean ORDER BY + LIMIT 1
+                analysis.sql_signals.add("ORDER_DESC" if "most" in question_lower or "biggest" in question_lower else "ORDER_ASC")
+                analysis.sql_signals.add("LIMIT")
 
         return analysis
 
